@@ -57,13 +57,30 @@ const stats = [
   { to: 10, suffix: "+", label: "Languages spoken" },
 ];
 
-const trustedBrands = [
-  { name: "Airtel Money", Icon: SiAirtel },
-  { name: "Vodafone", Icon: SiVodafone },
-  { name: "Orange Money", Icon: SiOrange },
-  { name: "Visa", Icon: SiVisa },
-  { name: "Mastercard", Icon: SiMastercard },
-  { name: "PayPal", Icon: SiPaypal },
+const fintechBrands = [
+  { name: "Airtel Money", Icon: SiAirtel, color: "#E2128A" },
+  { name: "Vodafone", Icon: SiVodafone, color: "#E1000F" },
+  { name: "Orange Money", Icon: SiOrange, color: "#FF6600" },
+  { name: "Visa", Icon: SiVisa, color: "#1A1F71" },
+  { name: "Mastercard", Icon: SiMastercard, color: "#EB001B" },
+  { name: "PayPal", Icon: SiPaypal, color: "#003087" },
+  { name: "Apple Pay", Icon: SiApplepay, color: "#111111" },
+  { name: "Google Pay", Icon: SiGooglepay, color: "#4285F4" },
+  { name: "Stripe", Icon: SiStripe, color: "#635BFF" },
+  { name: "Wise", Icon: SiWise, color: "#00B9FF" },
+  { name: "Western Union", Icon: SiWesternunion, color: "#E31837" },
+  { name: "MoneyGram", Icon: SiMoneygram, color: "#E31837" },
+  { name: "Revolut", Icon: SiRevolut, color: "#0066FF" },
+  { name: "N26", Icon: SiN26, color: "#FC5454" },
+  { name: "Paytm", Icon: SiPaytm, color: "#00BAF2" },
+  { name: "Nubank", Icon: SiNubank, color: "#820AD1" },
+  { name: "Bank of America", Icon: SiBankofamerica, color: "#E60028" },
+  { name: "ICICI Bank", Icon: SiIcicibank, color: "#F58220" },
+  { name: "HDFC Bank", Icon: SiHdfcbank, color: "#004C8F" },
+  { name: "Deutsche Bank", Icon: SiDeutschebank, color: "#DB0C31" },
+  { name: "Commerzbank", Icon: SiCommerzbank, color: "#003A6B" },
+  { name: "CaixaBank", Icon: SiCaixabank, color: "#0054A4" },
+  { name: "Starling Bank", Icon: SiStarlingbank, color: "#222222" },
 ];
 
 const steps = [
@@ -280,35 +297,6 @@ const LandingPage: FC = () => {
         </div>
       </section>
 
-      {/* TRUSTED BY */}
-      <section className="mx-auto max-w-6xl px-5 py-6 md:py-10">
-        <Reveal>
-          <div className="rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-card md:p-8">
-            <div className="flex flex-col items-center gap-2 text-center">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                Trusted by the ecosystem
-              </p>
-              <h2 className="font-display text-2xl font-semibold tracking-tight text-slate-900 md:text-3xl">
-                Built for the way communities move money
-              </h2>
-            </div>
-
-            <div className="mt-7 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-              {trustedBrands.map((brand, i) => {
-                const Icon = brand.Icon;
-                return (
-                  <Reveal key={brand.name} delay={i * 60}>
-                    <div className="group flex h-28 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-700 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-300 hover:bg-white hover:text-blue-800 hover:shadow-md dark:text-slate-300 dark:hover:text-blue-300">
-                      <Icon className="h-10 w-10 sm:h-12 sm:w-12" />
-                    </div>
-                  </Reveal>
-                );
-              })}
-            </div>
-          </div>
-        </Reveal>
-      </section>
-
       {/* VISION */}
       <section id="vision" className="mx-auto max-w-4xl px-5 py-12">
         <Reveal>
@@ -350,43 +338,24 @@ const LandingPage: FC = () => {
 
             <div className="marquee-wrap mt-10">
               <div className="marquee-right flex w-max gap-5">
-                {[
-                  { Icon: SiAirtel, name: "Airtel Money" },
-                  { Icon: SiVodafone, name: "Vodafone" },
-                  { Icon: SiOrange, name: "Orange Money" },
-                  { Icon: SiVisa, name: "Visa" },
-                  { Icon: SiMastercard, name: "Mastercard" },
-                  { Icon: SiPaypal, name: "PayPal" },
-                  { Icon: SiApplepay, name: "Apple Pay" },
-                  { Icon: SiGooglepay, name: "Google Pay" },
-                  { Icon: SiStripe, name: "Stripe" },
-                  { Icon: SiWise, name: "Wise" },
-                  { Icon: SiWesternunion, name: "Western Union" },
-                  { Icon: SiMoneygram, name: "MoneyGram" },
-                  { Icon: SiRevolut, name: "Revolut" },
-                  { Icon: SiN26, name: "N26" },
-                  { Icon: SiPaytm, name: "Paytm" },
-                  { Icon: SiNubank, name: "Nubank" },
-                  { Icon: SiBankofamerica, name: "Bank of America" },
-                  { Icon: SiIcicibank, name: "ICICI Bank" },
-                  { Icon: SiHdfcbank, name: "HDFC Bank" },
-                  { Icon: SiDeutschebank, name: "Deutsche Bank" },
-                  { Icon: SiCommerzbank, name: "Commerzbank" },
-                  { Icon: SiCaixabank, name: "CaixaBank" },
-                  { Icon: SiStarlingbank, name: "Starling Bank" },
-                ]
+                {fintechBrands
                   .flatMap((b) => Array(2).fill(b))
                   .map((b, i) => {
                     const Icon = b.Icon;
                     return (
                       <div
                         key={i}
-                        className="flex h-20 w-64 shrink-0 items-center gap-4 rounded-2xl bg-white p-4 text-slate-700 shadow-soft dark:text-slate-300"
+                        className="flex h-20 w-64 shrink-0 items-center gap-4 rounded-2xl bg-white p-4 shadow-soft"
                       >
-                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-white text-blue-800">
+                        <span
+                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-white"
+                          style={{ color: b.color }}
+                        >
                           <Icon className="h-7 w-7" />
                         </span>
-                        <p className="font-display text-base font-semibold">{b.name}</p>
+                        <p className="font-display text-base font-semibold text-slate-800">
+                          {b.name}
+                        </p>
                       </div>
                     );
                   })}

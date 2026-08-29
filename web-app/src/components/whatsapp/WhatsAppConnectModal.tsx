@@ -224,16 +224,27 @@ const WhatsAppConnectModal: FC<Props> = ({
                       </li>
                     </ol>
                     <p className="text-xs text-slate-500 dark:text-slate-400">
-                      Tip: keep this screen open on a computer or tablet so you can
-                      scan it with your phone.
+                      Tip: open this on a computer or tablet and scan it with your
+                      phone. The code refreshes automatically — if it changes, just
+                      scan the latest one. You have a few minutes to scan; after
+                      that it expires and a new code appears.
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => setShowCodeForm(true)}
-                      className="text-xs text-blue-600 underline dark:text-blue-400"
-                    >
-                      Can’t scan? Link with a pairing code instead
-                    </button>
+                    <div className="flex flex-wrap items-center justify-center gap-4">
+                      <button
+                        type="button"
+                        onClick={handleStart}
+                        className="text-xs text-blue-600 underline dark:text-blue-400"
+                      >
+                        Refresh QR code
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowCodeForm(true)}
+                        className="text-xs text-blue-600 underline dark:text-blue-400"
+                      >
+                        Can’t scan? Link with a pairing code instead
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">

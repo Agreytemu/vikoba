@@ -12,6 +12,11 @@ const logger = pino({
 const isConfigured = () =>
   Boolean(config.supabaseUrl && config.supabaseServiceRoleKey);
 
+// In-memory auth state is cached per session so a socket reconnect (e.g. the
+// 515 "restart required" WhatsApp sends right after a successful pairing) reuses
+// the same credentials instead of starting from a blank slate.
+const inMemoryCache = new Map();
+
 function authHeaders() {
   return {
     apikey: config.supabaseServiceRoleKey,
@@ -48,6 +53,10 @@ async function upsertRow(row) {
 }
 
 async function deleteAuth(sessionId) {
+  if (!isConfigured()) {
+    inMemoryCache.delete(sessionId);
+    return;
+  }
   const url = `${tableUrl()}?session_id=eq.${encodeURIComponent(sessionId)}`;
   const response = await fetch(url, {
     method: "DELETE",
@@ -174,8 +183,65 @@ async function useSupabaseAuthState(sessionId) {
 // Track all auth states so we can flush the whole store on shutdown.
 const authStates = new Set();
 
+/**
+ * In-memory auth state used when Supabase is not configured (local dev /
+ * QR smoke tests). It mirrors the Supabase interface but keeps creds + keys
+ * in process memory only — sessions do not survive a restart.
+ */
+async function useInMemoryAuthState(sessionId) {
+  if (inMemoryCache.has(sessionId)) {
+    return inMemoryCache.get(sessionId);
+  }
+
+  const creds = initAuthCreds();
+  const keys = {};
+
+  const state = {
+    creds,
+    keys: {
+      async get(type, ids) {
+        const bucket = keys[type] || {};
+        const result = {};
+        for (const id of ids) {
+          result[id] =
+            typeof bucket[id] !== "undefined"
+              ? JSON.parse(JSON.stringify(bucket[id], BufferJSON.replacer))
+              : null;
+        }
+        return result;
+      },
+      async set(data) {
+        for (const type in data) {
+          const bucket = keys[type] || (keys[type] = {});
+          for (const id in data[type]) {
+            const plain = data[type][id];
+            if (plain === null || typeof plain === "undefined") {
+              delete bucket[id];
+            } else {
+              bucket[id] = JSON.parse(JSON.stringify(plain, BufferJSON.replacer));
+            }
+          }
+        }
+      },
+      async clear() {
+        for (const type in keys) delete keys[type];
+      },
+    },
+  };
+
+  const result = {
+    state,
+    saveCreds: async () => {},
+    flush: async () => {},
+  };
+  inMemoryCache.set(sessionId, result);
+  return result;
+}
+
 async function useSupabaseAuthStateTracked(sessionId) {
-  const auth = await useSupabaseAuthState(sessionId);
+  const auth = isConfigured()
+    ? await useSupabaseAuthState(sessionId)
+    : await useInMemoryAuthState(sessionId);
   const entry = { auth, sessionId };
   authStates.add(entry);
   return {

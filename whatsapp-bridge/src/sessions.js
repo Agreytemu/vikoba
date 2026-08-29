@@ -9,6 +9,7 @@ const {
 
 const config = require("./config");
 const { useSupabaseAuthState, deleteAuth } = require("./supabase");
+const QRCode = require("qrcode");
 
 // A deliberately standard browser identity (what the phone shows as "WhatsApp
 // Web/logged-in device"). Safari (macOS) is a current, widely-trusted user
@@ -185,8 +186,16 @@ class SessionStore {
           if (update.qr) {
             // WhatsApp wants a device linked — we prefer QR scanning on the
             // phone (standard WhatsApp Web flow); the pairing code remains as
-            // a fallback for devices with no second screen.
-            live.qr = update.qr;
+            // a fallback for devices with no second screen. The raw connect
+            // string is turned into a scannable image (data URL) here.
+            QRCode.toDataURL(update.qr)
+              .then((url) => {
+                live.qr = url;
+              })
+              .catch((error) => {
+                logger.warn({ id, error: String(error?.message || "") }, "qr render failed");
+                live.qr = "";
+              });
             if (live.status !== "connected") {
               live.status = "awaiting_pairing";
             }
