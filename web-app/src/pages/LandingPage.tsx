@@ -330,38 +330,42 @@ const LandingPage: FC = () => {
               </p>
             </div>
 
-            <div className="mt-10 grid gap-5 sm:grid-cols-2">
-              {[
-                {
-                  logo: MpesaLogo,
-                  name: "M-Pesa",
-                  note: "Round up contributions straight from the phone in your pocket.",
-                },
-                {
-                  logo: NmbLogo,
-                  name: "NMB Bank",
-                  note: "Trusted bank rails for group withdrawals, payouts, and records.",
-                },
-              ].map((b) => (
-                <div
-                  key={b.name}
-                  className="flex h-full items-center gap-5 rounded-3xl bg-white p-6 shadow-soft"
-                >
-                  <span className="flex h-24 w-40 shrink-0 items-center justify-center rounded-2xl border border-slate-100 bg-white p-3">
-                    <img
-                      src={b.logo}
-                      alt={`${b.name} logo`}
-                      className="max-h-16 w-auto object-contain"
-                    />
-                  </span>
-                  <div>
-                    <p className="font-display text-lg font-semibold text-ink">
-                      {b.name}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-600">{b.note}</p>
-                  </div>
-                </div>
-              ))}
+            <div className="marquee-wrap mt-10">
+              <div className="marquee-right flex w-max gap-5">
+                {[
+                  {
+                    logo: MpesaLogo,
+                    name: "M-Pesa",
+                    note: "Round up contributions straight from the phone in your pocket.",
+                  },
+                  {
+                    logo: NmbLogo,
+                    name: "NMB Bank",
+                    note: "Trusted bank rails for group withdrawals, payouts, and records.",
+                  },
+                ]
+                  .flatMap((b) => Array(4).fill(b))
+                  .map((b, i) => (
+                    <div
+                      key={i}
+                      className="flex h-20 w-72 shrink-0 items-center gap-4 rounded-2xl bg-white p-4 shadow-soft"
+                    >
+                      <span className="flex h-14 w-28 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-white p-2">
+                        <img
+                          src={b.logo}
+                          alt={`${b.name} logo`}
+                          className="max-h-9 w-auto object-contain grayscale transition duration-300 hover:grayscale-0"
+                        />
+                      </span>
+                      <div>
+                        <p className="font-display text-base font-semibold text-ink">
+                          {b.name}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-600">{b.note}</p>
+                      </div>
+                    </div>
+                  ))}
+              </div>
             </div>
           </div>
         </Reveal>

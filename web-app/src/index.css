@@ -96,6 +96,49 @@
   }
 }
 
+/* Seamless marquee — content drifts to the right (translateX -50% -> 0 with a
+   duplicated track). Used for the trusted-brands band on the landing page. */
+@keyframes marquee-right {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.marquee-wrap {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 8%,
+    #000 92%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    #000 8%,
+    #000 92%,
+    transparent
+  );
+}
+
+.marquee-right {
+  animation: marquee-right 32s linear infinite;
+  will-change: transform;
+}
+
+.marquee-wrap:hover .marquee-right {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-right {
+    animation: none;
+  }
+}
+
 /* ---- Native mobile feel (screens under 768px) ---- */
 @media (max-width: 767px) {
   /* Prevent iOS/Android automatic zoom when a form field is focused */
