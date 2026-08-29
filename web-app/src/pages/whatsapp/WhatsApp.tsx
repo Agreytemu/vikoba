@@ -6,6 +6,7 @@ import LucideIcon from "@/components/LucideIcon";
 import { Button } from "@/components/ui/button";
 import FormInput from "@/components/FormInput";
 import WhatsAppConnectModal from "@/components/whatsapp/WhatsAppConnectModal";
+import CountryPhoneInput from "@/components/CountryPhoneInput";
 import {
   useBulkSendMessage,
   useGetWhatsAppSessions,
@@ -269,11 +270,12 @@ const DeviceCard = ({
           <div className="rounded-xl border border-slate-100 p-4 dark:border-slate-800">
             <h3 className="mb-3 text-sm font-semibold">Send a test message</h3>
             <form onSubmit={handleTest} className="space-y-3">
-              <FormInput
-                type="tel"
-                label="Phone (with country code, e.g. +2547…)"
+              <CountryPhoneInput
+                id="test-to"
+                label="Phone (with country code)"
                 value={testForm.to}
-                onChange={(e) => setTestForm({ ...testForm, to: e.target.value })}
+                onChange={(v) => setTestForm({ ...testForm, to: v })}
+                placeholder="712 345 678"
               />
               <FormInput
                 type="text"

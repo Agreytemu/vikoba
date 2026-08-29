@@ -17,12 +17,31 @@ import Reveal from "@/components/landing/Reveal";
 import Counter from "@/components/landing/Counter";
 import { SYSTEM_NAME, SYSTEM_TAGLINE, CURRENT_YEAR, LOGO_URL } from "@/lib/system";
 import LoginSvg from "@/assets/authenticate.svg";
-import AitelLogo from "@/assets/aitellogo.jpg";
-import CrdbLogo from "@/assets/crdblogo.jpg";
-import HaloPesaLogo from "@/assets/halopesalogo.jpg";
-import MixxLogo from "@/assets/mixxbyyaslogo.jpg";
-import MpesaLogo from "@/assets/mpesalogo.jpg";
-import NmbLogo from "@/assets/nmblogo.jpg";
+import {
+  SiAirtel,
+  SiVodafone,
+  SiOrange,
+  SiVisa,
+  SiMastercard,
+  SiPaypal,
+  SiApplepay,
+  SiGooglepay,
+  SiStripe,
+  SiWise,
+  SiWesternunion,
+  SiMoneygram,
+  SiRevolut,
+  SiN26,
+  SiPaytm,
+  SiNubank,
+  SiBankofamerica,
+  SiIcicibank,
+  SiHdfcbank,
+  SiDeutschebank,
+  SiCommerzbank,
+  SiCaixabank,
+  SiStarlingbank,
+} from "react-icons/si";
 import { detectInstalledApp } from "@/hooks/usePwaStatus";
 
 const navLinks = [
@@ -39,12 +58,12 @@ const stats = [
 ];
 
 const trustedBrands = [
-  { name: "M-Pesa", src: MpesaLogo },
-  { name: "NMB", src: NmbLogo },
-  { name: "CRDB", src: CrdbLogo },
-  { name: "Mixx by Yas", src: MixxLogo },
-  { name: "HaloPesa", src: HaloPesaLogo },
-  { name: "Aitel", src: AitelLogo },
+  { name: "Airtel Money", Icon: SiAirtel },
+  { name: "Vodafone", Icon: SiVodafone },
+  { name: "Orange Money", Icon: SiOrange },
+  { name: "Visa", Icon: SiVisa },
+  { name: "Mastercard", Icon: SiMastercard },
+  { name: "PayPal", Icon: SiPaypal },
 ];
 
 const steps = [
@@ -275,17 +294,16 @@ const LandingPage: FC = () => {
             </div>
 
             <div className="mt-7 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-              {trustedBrands.map((brand, i) => (
-                <Reveal key={brand.name} delay={i * 60}>
-                  <div className="group flex h-28 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-300 hover:bg-white hover:shadow-md">
-                    <img
-                      src={brand.src}
-                      alt={`${brand.name} logo`}
-                      className="max-h-12 w-full object-contain grayscale transition duration-300 group-hover:grayscale-0 sm:max-h-14"
-                    />
-                  </div>
-                </Reveal>
-              ))}
+              {trustedBrands.map((brand, i) => {
+                const Icon = brand.Icon;
+                return (
+                  <Reveal key={brand.name} delay={i * 60}>
+                    <div className="group flex h-28 items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-slate-700 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-300 hover:bg-white hover:text-blue-800 hover:shadow-md dark:text-slate-300 dark:hover:text-blue-300">
+                      <Icon className="h-10 w-10 sm:h-12 sm:w-12" />
+                    </div>
+                  </Reveal>
+                );
+              })}
             </div>
           </div>
         </Reveal>
@@ -333,38 +351,45 @@ const LandingPage: FC = () => {
             <div className="marquee-wrap mt-10">
               <div className="marquee-right flex w-max gap-5">
                 {[
-                  {
-                    logo: MpesaLogo,
-                    name: "M-Pesa",
-                    note: "Round up contributions straight from the phone in your pocket.",
-                  },
-                  {
-                    logo: NmbLogo,
-                    name: "NMB Bank",
-                    note: "Trusted bank rails for group withdrawals, payouts, and records.",
-                  },
+                  { Icon: SiAirtel, name: "Airtel Money" },
+                  { Icon: SiVodafone, name: "Vodafone" },
+                  { Icon: SiOrange, name: "Orange Money" },
+                  { Icon: SiVisa, name: "Visa" },
+                  { Icon: SiMastercard, name: "Mastercard" },
+                  { Icon: SiPaypal, name: "PayPal" },
+                  { Icon: SiApplepay, name: "Apple Pay" },
+                  { Icon: SiGooglepay, name: "Google Pay" },
+                  { Icon: SiStripe, name: "Stripe" },
+                  { Icon: SiWise, name: "Wise" },
+                  { Icon: SiWesternunion, name: "Western Union" },
+                  { Icon: SiMoneygram, name: "MoneyGram" },
+                  { Icon: SiRevolut, name: "Revolut" },
+                  { Icon: SiN26, name: "N26" },
+                  { Icon: SiPaytm, name: "Paytm" },
+                  { Icon: SiNubank, name: "Nubank" },
+                  { Icon: SiBankofamerica, name: "Bank of America" },
+                  { Icon: SiIcicibank, name: "ICICI Bank" },
+                  { Icon: SiHdfcbank, name: "HDFC Bank" },
+                  { Icon: SiDeutschebank, name: "Deutsche Bank" },
+                  { Icon: SiCommerzbank, name: "Commerzbank" },
+                  { Icon: SiCaixabank, name: "CaixaBank" },
+                  { Icon: SiStarlingbank, name: "Starling Bank" },
                 ]
-                  .flatMap((b) => Array(4).fill(b))
-                  .map((b, i) => (
-                    <div
-                      key={i}
-                      className="flex h-20 w-72 shrink-0 items-center gap-4 rounded-2xl bg-white p-4 shadow-soft"
-                    >
-                      <span className="flex h-14 w-28 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-white p-2">
-                        <img
-                          src={b.logo}
-                          alt={`${b.name} logo`}
-                          className="max-h-9 w-auto object-contain grayscale transition duration-300 hover:grayscale-0"
-                        />
-                      </span>
-                      <div>
-                        <p className="font-display text-base font-semibold text-ink">
-                          {b.name}
-                        </p>
-                        <p className="mt-0.5 text-xs text-slate-600">{b.note}</p>
+                  .flatMap((b) => Array(2).fill(b))
+                  .map((b, i) => {
+                    const Icon = b.Icon;
+                    return (
+                      <div
+                        key={i}
+                        className="flex h-20 w-64 shrink-0 items-center gap-4 rounded-2xl bg-white p-4 text-slate-700 shadow-soft dark:text-slate-300"
+                      >
+                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-100 bg-white text-blue-800">
+                          <Icon className="h-7 w-7" />
+                        </span>
+                        <p className="font-display text-base font-semibold">{b.name}</p>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
             </div>
           </div>

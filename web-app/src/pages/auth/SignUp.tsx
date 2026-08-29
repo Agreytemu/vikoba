@@ -10,6 +10,7 @@ import { SYSTEM_NAME, LOGO_URL } from "@/lib/system";
 import FormInput from "@/components/FormInput";
 import Button from "@/components/Button";
 import Spinner from "@/components/Spinner";
+import CountryPhoneInput from "@/components/CountryPhoneInput";
 import { useRegister } from "@/hooks/api/auth";
 import { getApiErrorMessage } from "@/lib/utils";
 
@@ -105,14 +106,12 @@ const SignUp: FC = () => {
                   onChange={(e) => setLastName(e.target.value)}
                 />
               </div>
-              <FormInput
-                type="tel"
-                name="phoneNumber"
-                value={phoneNumber}
-                placeholder="Phone number e.g. +254712345678"
-                className=""
+              <CountryPhoneInput
+                id="phoneNumber"
                 label="Phone number"
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                value={phoneNumber}
+                onChange={setPhoneNumber}
+                placeholder="712 345 678"
               />
               <FormInput
                 type="email"
