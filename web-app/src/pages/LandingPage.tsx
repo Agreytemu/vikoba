@@ -312,6 +312,61 @@ const LandingPage: FC = () => {
         </Reveal>
       </section>
 
+      {/* TRUSTED BRANDS */}
+      <section className="mx-auto max-w-6xl px-5 py-16">
+        <Reveal>
+          <div className="overflow-hidden rounded-3xl bg-blue-800 p-8 text-white shadow-card md:p-12">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-200">
+              Payments you already trust
+            </p>
+            <div className="mt-4 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+              <h2 className="font-display text-3xl font-semibold leading-snug md:text-4xl">
+                Where the money moves — on rails you already know.
+              </h2>
+              <p className="max-w-sm text-sm text-blue-100/90">
+                Contributions and payouts ride on familiar, trusted brands, so a
+                vikoba feels less like software and more like the group purse it
+                always was.
+              </p>
+            </div>
+
+            <div className="mt-10 grid gap-5 sm:grid-cols-2">
+              {[
+                {
+                  logo: MpesaLogo,
+                  name: "M-Pesa",
+                  note: "Round up contributions straight from the phone in your pocket.",
+                },
+                {
+                  logo: NmbLogo,
+                  name: "NMB Bank",
+                  note: "Trusted bank rails for group withdrawals, payouts, and records.",
+                },
+              ].map((b) => (
+                <div
+                  key={b.name}
+                  className="flex h-full items-center gap-5 rounded-3xl bg-white p-6 shadow-soft"
+                >
+                  <span className="flex h-24 w-40 shrink-0 items-center justify-center rounded-2xl border border-slate-100 bg-white p-3">
+                    <img
+                      src={b.logo}
+                      alt={`${b.name} logo`}
+                      className="max-h-16 w-auto object-contain"
+                    />
+                  </span>
+                  <div>
+                    <p className="font-display text-lg font-semibold text-ink">
+                      {b.name}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-600">{b.note}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
       {/* HOW IT WORKS */}
       <section id="how" className="mx-auto max-w-6xl px-5 py-16">
         <Reveal>

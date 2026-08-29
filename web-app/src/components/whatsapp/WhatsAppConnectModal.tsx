@@ -183,6 +183,10 @@ const WhatsAppConnectModal: FC<Props> = ({
                         code with your phone camera.
                       </li>
                     </ol>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Tip: keep this screen open on a computer or tablet so you can
+                      scan it with your phone.
+                    </p>
                     <button
                       type="button"
                       onClick={() => setShowCodeForm(true)}
