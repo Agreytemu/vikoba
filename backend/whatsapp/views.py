@@ -338,3 +338,37 @@ class WhatsAppSessionBulkSendView(APIView):
             serializer.validated_data["text"],
         )
         return Response(result)
+
+
+class WhatsAppSessionRescanView(APIView):
+    """Restart an existing device's WhatsApp socket to regenerate its QR code.
+
+    Reuses the same session id (no new database row, no extra bridge session)
+    so repeatedly re-scanning a half-linked device does not pile up sessions.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, session_id):
+        try:
+            session = get_object_or_404(WhatsAppSession, session_id=session_id)
+            if not _can_manage(request.user, session):
+                raise PermissionError
+        except PermissionError:
+            return Response(
+                {"detail": "You do not manage this device."},
+                status=http_status.HTTP_403_FORBIDDEN,
+            )
+        # The bridge may have dropped the socket; re-starting is idempotent and
+        # regenerates a fresh QR on the same session id.
+        start_session(session)
+        merged = session_status(session, want_pairing=True)
+        session.refresh_from_bridge(merged)
+        session.can_manage = True
+        return Response(
+            {
+                **WhatsAppSessionSerializer(session).data,
+                "pairing_code": merged.get("pairing_code"),
+                "qr": merged.get("qr"),
+            }
+        )

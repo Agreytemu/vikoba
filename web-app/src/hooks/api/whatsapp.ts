@@ -70,6 +70,15 @@ export const usePairWhatsAppSession = (sessionId?: string) => {
   });
 };
 
+export const useRescanSession = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => whatsappService.rescan(sessionId),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: [...WHATSAPP_KEYS, "sessions"] }),
+  });
+};
+
 export const useSendTestMessage = (sessionId?: string) =>
   useMutation({
     mutationFn: ({ to, text }: { to: string; text: string }) =>

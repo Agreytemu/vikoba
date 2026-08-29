@@ -59,6 +59,9 @@ export const whatsappService = {
   sessionStatus: (sessionId: string) =>
     api.get(`/whatsapp/sessions/${sessionId}/`) as Promise<WhatsAppSessionStatus>,
 
+  rescan: (sessionId: string) =>
+    api.post(`/whatsapp/sessions/${sessionId}/rescan/`) as Promise<WhatsAppSessionStatus>,
+
   pairSession: (sessionId: string, phone: string) =>
     api.post(`/whatsapp/sessions/${sessionId}/pair/`, { phone }) as Promise<PairingResult>,
 

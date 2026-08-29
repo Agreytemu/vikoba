@@ -10,6 +10,7 @@ import {
   useCreateWhatsAppSession,
   useGetWhatsAppSessions,
   usePairWhatsAppSession,
+  useRescanSession,
   useSessionStatus,
 } from "@/hooks/api/whatsapp";
 import { WhatsAppSession } from "@/services/whatsapp";
@@ -20,6 +21,8 @@ interface Props {
   onClose: () => void;
   /** Provide a group id to pair the chairperson's device for that group. */
   groupId?: number;
+  /** Provide an existing session id to rescan/show it instead of creating one. */
+  sessionId?: string;
   onConnected?: (phone: string) => void;
   defaultDisplayName?: string;
 }
@@ -37,12 +40,14 @@ const WhatsAppConnectModal: FC<Props> = ({
   isOpen,
   onClose,
   groupId,
+  sessionId: propSessionId,
   onConnected,
   defaultDisplayName,
 }) => {
   const owner = groupId ? "CHAIR" : "ADMIN";
   const { data: sessions } = useGetWhatsAppSessions(isOpen);
   const createSession = useCreateWhatsAppSession();
+  const rescanSession = useRescanSession();
   const [sessionId, setSessionId] = useState<string>();
   const [phone, setPhone] = useState("");
   const [numberLabel, setNumberLabel] = useState("");
@@ -52,7 +57,7 @@ const WhatsAppConnectModal: FC<Props> = ({
   const scopeSession: WhatsAppSession | undefined = sessions?.find((s) =>
     owner === "ADMIN" ? s.owner_type === "ADMIN" : s.group === groupId,
   );
-  const activeSessionId = sessionId ?? scopeSession?.session_id;
+  const activeSessionId = propSessionId ?? sessionId ?? scopeSession?.session_id;
 
   const statusQuery = useSessionStatus(activeSessionId, 1500);
   const currentStatus = statusQuery.data?.status ?? scopeSession?.status;
@@ -80,6 +85,15 @@ const WhatsAppConnectModal: FC<Props> = ({
   }, [activeSessionId]);
 
   const handleStart = () => {
+    // If we already point at an existing session, rescan it in place instead of
+    // spinning up a brand new one — prevents sessions piling up.
+    if (activeSessionId) {
+      rescanSession.mutate(activeSessionId, {
+        onError: (error: unknown) =>
+          toast.error(getApiErrorMessage(error), { autoClose: 4000 }),
+      });
+      return;
+    }
     createSession.mutate(
       {
         owner_type: owner,

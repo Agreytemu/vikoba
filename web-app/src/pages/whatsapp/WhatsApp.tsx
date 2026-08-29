@@ -11,6 +11,7 @@ import {
   useBulkSendMessage,
   useGetWhatsAppSessions,
   useRemoveSession,
+  useRescanSession,
   useSendTestMessage,
   useSetPrimarySession,
 } from "@/hooks/api/whatsapp";
@@ -32,7 +33,22 @@ export const WhatsApp: FC = () => {
   const { data: myGroups } = useGetMyGroups();
   const setPrimary = useSetPrimarySession();
   const removeSession = useRemoveSession();
+  const rescan = useRescanSession();
   const [connectOpen, setConnectOpen] = useState(false);
+  const [rescanId, setRescanId] = useState<string | undefined>();
+
+  const handleOpenConnect = () => {
+    setRescanId(undefined);
+    setConnectOpen(true);
+  };
+
+  const handleRescan = (sessionId: string) => {
+    rescan.mutate(sessionId, {
+      onError: (error) => toast.error(getApiErrorMessage(error), { autoClose: 4000 }),
+    });
+    setRescanId(sessionId);
+    setConnectOpen(true);
+  };
 
   const manageable = (sessions ?? []).filter((s) => s.can_manage);
   const groupDevices = (sessions ?? []).filter(
@@ -51,7 +67,7 @@ export const WhatsApp: FC = () => {
             Your device for verification codes; group chairperson devices for receipts.
           </p>
         </div>
-        <Button type="button" onClick={() => setConnectOpen(true)}>
+        <Button type="button" onClick={handleOpenConnect}>
           <LucideIcon name="Plus" size={16} className="mr-1" /> Connect device
         </Button>
       </div>
@@ -96,6 +112,7 @@ export const WhatsApp: FC = () => {
                         onError: (error) => toast.error(getApiErrorMessage(error), { autoClose: 4000 }),
                       })
                     }
+                    onRescan={handleRescan}
                     groupOptions={myGroups ?? []}
                   />
                 ))}
@@ -126,6 +143,7 @@ export const WhatsApp: FC = () => {
                     canManage={false}
                     onSetPrimary={() => {}}
                     onRemove={() => {}}
+                    onRescan={() => {}}
                     groupOptions={[]}
                   />
                 ))}
@@ -135,7 +153,11 @@ export const WhatsApp: FC = () => {
         </>
       )}
 
-      <WhatsAppConnectModal isOpen={connectOpen} onClose={() => setConnectOpen(false)} />
+      <WhatsAppConnectModal
+        isOpen={connectOpen}
+        onClose={() => setConnectOpen(false)}
+        sessionId={rescanId}
+      />
     </div>
   );
 };
@@ -151,6 +173,7 @@ const DeviceCard = ({
   groupName,
   onSetPrimary,
   onRemove,
+  onRescan,
   groupOptions,
 }: {
   sessionId: string;
@@ -163,6 +186,7 @@ const DeviceCard = ({
   groupName?: string | null;
   onSetPrimary: () => void;
   onRemove: () => void;
+  onRescan: (sessionId: string) => void;
   groupOptions: { id: number; name: string }[];
 }) => {
   const [expanded, setExpanded] = useState(false);
@@ -255,6 +279,11 @@ const DeviceCard = ({
               <Button type="button" size="sm" variant="outline" onClick={() => setExpanded((v) => !v)}>
                 {expanded ? "Close" : "Actions"}
               </Button>
+              {!isConnected && (
+                <Button type="button" size="sm" variant="ghost" onClick={() => onRescan(sessionId)}>
+                  Rescan QR
+                </Button>
+              )}
               {!isPrimary && (
                 <Button type="button" size="sm" variant="ghost" onClick={onSetPrimary}>
                   Set primary
