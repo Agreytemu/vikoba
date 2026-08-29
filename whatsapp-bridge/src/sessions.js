@@ -216,17 +216,14 @@ class SessionStore {
               live.status = "logged_out";
               return;
             }
-            if (live.wasConnected) {
-              // A previously-paired device: keep the service alive.
-              live.status = "disconnected";
-              this._scheduleReconnect(id, config.reconnectDelayMs);
-            } else {
-              // Never linked: idle instead of churning a socket every few
-              // seconds (that would invalidate pending pairing codes and spam
-              // registration attempts). The user re-pairs on demand; POST
-              // /sessions restarts if needed.
-              live.status = "awaiting_pairing";
-            }
+            // Bring the socket back for any non-logout close. If credentials
+            // are present the next connect logs straight in; if not, it
+            // regenerates a fresh QR. This also covers the 515 "restart
+            // required" WhatsApp sends immediately after a first successful
+            // pairing — without it the session would be orphaned with no socket
+            // and the frontend would hang on "awaiting pairing".
+            live.status = live.wasConnected ? "disconnected" : "awaiting_pairing";
+            this._scheduleReconnect(id, config.reconnectDelayMs);
           }
         });
 
