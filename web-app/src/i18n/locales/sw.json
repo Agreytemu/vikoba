@@ -1,0 +1,68 @@
+{
+  "brand": {
+    "name": "Vikoba Kidigitali",
+    "tagline": "Ushirika wa Akiba na Mikopo"
+  },
+  "nav": {
+    "dashboard": "Dashibodi",
+    "members": "Wanachama",
+    "accounts": "Akaunti",
+    "transactions": "Miamala",
+    "loans": "Mikopo",
+    "expenses": "Matumizi",
+    "settings": "Mipangilio",
+    "help": "Msaada",
+    "users": "Watumiaji",
+    "sms": "SMS",
+    "emails": "Barua pepe",
+    "whatsapp": "WhatsApp",
+    "groups": "Vikundi",
+    "my-wallet": "Mkoba wangu",
+    "profile": "Wasifu",
+    "logout": "Toka",
+    "more": "Zaidi"
+  },
+  "currency": {
+    "title": "Sarafu ya mahali",
+    "promptTitle": "Onyesha kiasi kwa sarafu ya nchi yako",
+    "promptBody": "Ruhusu eneo lako ili mizani na kiasi vionekane kwa sarafu ya nchi ulioko.",
+    "allow": "Ruhusu eneo",
+    "later": "Baadaye",
+    "detecting": "Inagundua sarafu yako...",
+    "detected": "Inaonyesha kwa {{currency}} ({{country}})",
+    "detectedNoCountry": "Inaonyesha kwa {{currency}}",
+    "denied": "Eneo halipatikani",
+    "change": "Badili",
+    "pickTitle": "Chagua sarafu"
+  },
+  "common": {
+    "profile": "Wasifu",
+    "login": "Ingia",
+    "save": "Hifadhi",
+    "cancel": "Ghairi",
+    "loading": "Inapakia...",
+    "search": "Tafuta",
+    "theme": "Badilisha mandhari"
+  },
+  "auth": {
+    "welcomeBack": "Karibu tena",
+    "welcomeSubtitle": "Bonyeza chache kuanza",
+    "welcomeDescription": "Karibu tena! Tunafurahi kuwa ona tena. Tafadhali weka taarifa zako za kuingia ili kuendelea.",
+    "loginTitle": "Karibu tena!",
+    "email": "Barua pepe",
+    "password": "Nenosiri",
+    "forgotPassword": "Umesahau nenosiri?",
+    "dontHaveAccount": "Huna akaunti?",
+    "signUp": "Jisajili",
+    "demoLogin": "Ingia ya maonyesho",
+    "demoNote": "Seva ya maonyesho — itumie kwa uwajibikaji. Usitumie vibaya programu au haki za ufikiaji."
+  },
+  "language": {
+    "label": "Lugha",
+    "english": "Kiingereza",
+    "swahili": "Kiswahili"
+  },
+  "footer": {
+    "rights": "Haki zote zimehifadhiwa."
+  }
+}

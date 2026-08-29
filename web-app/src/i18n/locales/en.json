@@ -1,0 +1,86 @@
+{
+  "brand": {
+    "name": "Vikoba Kidigitali",
+    "tagline": "Savings & Credit Cooperative"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "members": "Members",
+    "accounts": "Accounts",
+    "transactions": "Transactions",
+    "loans": "Loans",
+    "expenses": "Expenses",
+    "settings": "Settings",
+    "help": "Help",
+    "users": "Users",
+    "sms": "SMS",
+    "emails": "Emails",
+    "whatsapp": "WhatsApp",
+    "groups": "Groups",
+    "my-loans": "My Loans",
+    "my-wallet": "My Wallet",
+    "notifications": "Notifications",
+    "community": "Community",
+    "share-outs": "Share-outs",
+    "profile": "Profile",
+    "logout": "Logout",
+    "more": "More"
+  },
+  "currency": {
+    "title": "Local currency",
+    "promptTitle": "Show amounts in your local currency",
+    "promptBody": "Allow your location so balances and amounts appear in your country's currency.",
+    "allow": "Allow location",
+    "later": "Maybe later",
+    "detecting": "Detecting your currency...",
+    "detected": "Showing amounts in {{currency}} ({{country}})",
+    "detectedNoCountry": "Showing amounts in {{currency}}",
+    "denied": "Location access unavailable",
+    "change": "Change",
+    "pickTitle": "Choose currency"
+  },
+  "common": {
+    "profile": "Profile",
+    "login": "Login",
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading...",
+    "search": "Search",
+    "theme": "Toggle theme"
+  },
+  "auth": {
+    "welcomeBack": "Welcome back",
+    "welcomeSubtitle": "A few more clicks to get started",
+    "welcomeDescription": "Welcome back! We're glad to see you again. Please enter your credentials to continue.",
+    "loginTitle": "Welcome back!",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot Password?",
+    "dontHaveAccount": "Don't have an account?",
+    "signUp": "Sign Up",
+    "demoLogin": "Demo login",
+    "demoNote": "Free demo server — use responsibly. Do not abuse the app or access rights.",
+    "quickLogin": "Quick PIN",
+    "emailTab": "Email",
+    "phoneNumber": "Phone number",
+    "pin": "Secret PIN (namba za siri)",
+    "pinLoginHint": "Enter the 4-digit secret PIN you set on this phone to jump straight to your dashboard.",
+    "pinLogin": "Log in with PIN",
+    "setupPin": "First time? Set up your secret PIN",
+    "setupPinTitle": "Set up your secret PIN",
+    "sendCode": "Send code",
+    "verifyCode": "Verify",
+    "savePin": "Save PIN",
+    "pinSteps": "Enter the confirmation code, then choose a 4-digit secret PIN. From then on, your phone number + PIN takes you straight to the dashboard.",
+    "codeSent": "Confirmation code sent. Check your email.",
+    "pinSaved": "Secret PIN set. You can now log in with your phone number and PIN."
+  },
+  "language": {
+    "label": "Language",
+    "english": "English",
+    "swahili": "Kiswahili"
+  },
+  "footer": {
+    "rights": "All rights reserved."
+  }
+}

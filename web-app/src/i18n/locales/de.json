@@ -1,0 +1,51 @@
+{
+  "brand": {
+    "name": "Vikoba Kidigitali",
+    "tagline": "Genossenschaft für Sparen und Kredit"
+  },
+  "nav": {
+    "dashboard": "Übersicht",
+    "members": "Mitglieder",
+    "accounts": "Konten",
+    "transactions": "Transaktionen",
+    "loans": "Kredite",
+    "expenses": "Ausgaben",
+    "settings": "Einstellungen",
+    "help": "Hilfe",
+    "users": "Benutzer",
+    "sms": "SMS",
+    "emails": "E-Mails",
+    "whatsapp": "WhatsApp",
+    "logout": "Abmelden"
+  },
+  "common": {
+    "profile": "Profil",
+    "login": "Anmelden",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "loading": "Wird geladen...",
+    "search": "Suchen",
+    "theme": "Thema wechseln"
+  },
+  "auth": {
+    "welcomeBack": "Willkommen zurück",
+    "welcomeSubtitle": "Nur noch ein paar Klicks",
+    "welcomeDescription": "Willkommen zurück! Wir freuen uns, Sie wiederzusehen. Bitte geben Sie Ihre Anmeldedaten ein, um fortzufahren.",
+    "loginTitle": "Willkommen zurück!",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "forgotPassword": "Passwort vergessen?",
+    "dontHaveAccount": "Kein Konto?",
+    "signUp": "Registrieren",
+    "demoLogin": "Demo-Anmeldung",
+    "demoNote": "Kostenloser Demoserver — bitte verantwortungsbewusst nutzen. Missbrauchen Sie die App oder Zugriffsrechte nicht."
+  },
+  "language": {
+    "label": "Sprache",
+    "english": "Englisch",
+    "swahili": "Swahili"
+  },
+  "footer": {
+    "rights": "Alle Rechte vorbehalten."
+  }
+}

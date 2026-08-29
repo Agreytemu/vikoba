@@ -1,0 +1,19 @@
+{
+  "name": "vikoba-whatsapp-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Baileys WhatsApp gateway for Vikoba Kidigitali (OTP + receipts).",
+  "type": "commonjs",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.7",
+    "express": "^4.19.2",
+    "pino": "^9.3.2"
+  }
+}

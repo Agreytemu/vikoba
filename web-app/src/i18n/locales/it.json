@@ -1,0 +1,51 @@
+{
+  "brand": {
+    "name": "Vikoba Kidigitali",
+    "tagline": "Cooperativa di risparmio e credito"
+  },
+  "nav": {
+    "dashboard": "Pannello",
+    "members": "Membri",
+    "accounts": "Conti",
+    "transactions": "Transazioni",
+    "loans": "Prestiti",
+    "expenses": "Spese",
+    "settings": "Impostazioni",
+    "help": "Aiuto",
+    "users": "Utenti",
+    "sms": "SMS",
+    "emails": "E-mail",
+    "whatsapp": "WhatsApp",
+    "logout": "Esci"
+  },
+  "common": {
+    "profile": "Profilo",
+    "login": "Accedi",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "loading": "Caricamento...",
+    "search": "Cerca",
+    "theme": "Cambia tema"
+  },
+  "auth": {
+    "welcomeBack": "Bentornato",
+    "welcomeSubtitle": "Mancano pochi clic per iniziare",
+    "welcomeDescription": "Bentornato! Siamo felici di rivederti. Inserisci le tue credenziali per continuare.",
+    "loginTitle": "Bentornato!",
+    "email": "E-mail",
+    "password": "Password",
+    "forgotPassword": "Password dimenticata?",
+    "dontHaveAccount": "Non hai un account?",
+    "signUp": "Registrati",
+    "demoLogin": "Accesso demo",
+    "demoNote": "Server di demostrazione gratuito — usalo responsabilmente. Non abusare dell'app o dei diritti di accesso."
+  },
+  "language": {
+    "label": "Lingua",
+    "english": "Inglese",
+    "swahili": "Swahili"
+  },
+  "footer": {
+    "rights": "Tutti i diritti riservati."
+  }
+}

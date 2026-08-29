@@ -1,0 +1,51 @@
+{
+  "brand": {
+    "name": "Vikoba Kidigitali",
+    "tagline": "Cooperativa de ahorro y crédito"
+  },
+  "nav": {
+    "dashboard": "Panel",
+    "members": "Miembros",
+    "accounts": "Cuentas",
+    "transactions": "Transacciones",
+    "loans": "Préstamos",
+    "expenses": "Gastos",
+    "settings": "Configuración",
+    "help": "Ayuda",
+    "users": "Usuarios",
+    "sms": "SMS",
+    "emails": "Correos",
+    "whatsapp": "WhatsApp",
+    "logout": "Cerrar sesión"
+  },
+  "common": {
+    "profile": "Perfil",
+    "login": "Iniciar sesión",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "loading": "Cargando...",
+    "search": "Buscar",
+    "theme": "Cambiar tema"
+  },
+  "auth": {
+    "welcomeBack": "Bienvenido de nuevo",
+    "welcomeSubtitle": "Unos pocos clics para empezar",
+    "welcomeDescription": "¡Bienvenido de nuevo! Nos alegra verte otra vez. Introduce tus credenciales para continuar.",
+    "loginTitle": "¡Bienvenido de nuevo!",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "dontHaveAccount": "¿No tienes una cuenta?",
+    "signUp": "Regístrate",
+    "demoLogin": "Inicio de demostración",
+    "demoNote": "Servidor de demostración gratuito: úsalo con responsabilidad. No hagas mal uso de la aplicación ni de los derechos de acceso."
+  },
+  "language": {
+    "label": "Idioma",
+    "english": "Inglés",
+    "swahili": "Swahili"
+  },
+  "footer": {
+    "rights": "Todos los derechos reservados."
+  }
+}

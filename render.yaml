@@ -1,0 +1,41 @@
+# Render deployment blueprint for the Vikoba Kidigitali API.
+# This file MUST live at the REPO ROOT: Render only auto-detects render.yaml in
+# the repository root. The Python service code lives under backend/, which is
+# why the web service below sets `rootDir: backend` — build and start commands
+# then run with backend/ as the working directory. This deploys with the native
+# Python runtime (no Dockerfile needed).
+services:
+  - type: web
+    name: vikoba-kidigitali-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: bash start-server.sh
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "vikoba-geb8.onrender.com"
+      - key: DATABASE_MODE
+        value: "postgres"
+      # DATABASE_URL is now Supabase (set in the Render dashboard as a secret,
+      # synced via sync:false so the value is never written to the repo).
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://vikoba-theta.vercel.app"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+
+databases:
+  - name: vikoba-kidigitali-db
+    plan: free
+    databaseName: vikoba_kidigitali_db
+    user: vikoba

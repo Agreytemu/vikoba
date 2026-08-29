@@ -1,0 +1,51 @@
+{
+  "brand": {
+    "name": "Vikoba Kidigitali",
+    "tagline": "储蓄与信贷合作社"
+  },
+  "nav": {
+    "dashboard": "仪表板",
+    "members": "会员",
+    "accounts": "账户",
+    "transactions": "交易",
+    "loans": "贷款",
+    "expenses": "支出",
+    "settings": "设置",
+    "help": "帮助",
+    "users": "用户",
+    "sms": "短信",
+    "emails": "电子邮件",
+    "whatsapp": "WhatsApp",
+    "logout": "退出"
+  },
+  "common": {
+    "profile": "个人资料",
+    "login": "登录",
+    "save": "保存",
+    "cancel": "取消",
+    "loading": "加载中...",
+    "search": "搜索",
+    "theme": "切换主题"
+  },
+  "auth": {
+    "welcomeBack": "欢迎回来",
+    "welcomeSubtitle": "再点几下即可开始",
+    "welcomeDescription": "欢迎回来！很高兴再次见到您。请输入您的凭据以继续。",
+    "loginTitle": "欢迎回来！",
+    "email": "电子邮件",
+    "password": "密码",
+    "forgotPassword": "忘记密码？",
+    "dontHaveAccount": "还没有账户？",
+    "signUp": "注册",
+    "demoLogin": "演示登录",
+    "demoNote": "免费演示服务器 — 请合理使用。请勿滥用应用或访问权限。"
+  },
+  "language": {
+    "label": "语言",
+    "english": "英语",
+    "swahili": "斯瓦希里语"
+  },
+  "footer": {
+    "rights": "版权所有。"
+  }
+}

@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --chart-1: 152 55% 34%;
+    --chart-2: 162 42% 30%;
+    --chart-3: 24 72% 50%;
+    --chart-4: 199 50% 40%;
+    --chart-5: 10 70% 45%;
+  }
+
+  .dark {
+    --chart-1: 152 60% 55%;
+    --chart-2: 162 50% 55%;
+    --chart-3: 30 80% 60%;
+    --chart-4: 200 55% 60%;
+    --chart-5: 12 75% 60%;
+  }
+
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-paper text-ink antialiased transition-colors duration-200;
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  html.dark body {
+    @apply bg-[#0d1117] text-slate-100;
+  }
+
+  /* Classic, human-crafted headings */
+  h1, h2, h3, h4 {
+    font-family: "Fraunces", ui-serif, Georgia, Cambria, serif;
+    @apply tracking-tight;
+  }
+
+  ::selection {
+    @apply bg-blue-700/20 text-blue-900;
+  }
+
+  html.dark ::selection {
+    @apply bg-blue-400/30 text-blue-100;
+  }
+}
+
+.spinner {
+  @apply inline-block w-6 h-6 rounded-full border-[3px] border-blue-200;
+  border-top-color: theme("colors.blue.700");
+  border-right-color: theme("colors.blue.300");
+  animation: spin 0.7s linear infinite;
+  will-change: transform;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 5s;
+  }
+}
+
+/* ---- Landing page ---- */
+.reveal {
+  opacity: 0;
+  transform: translateY(26px);
+  transition: opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: opacity, transform;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    transition: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---- Native mobile feel (screens under 768px) ---- */
+@media (max-width: 767px) {
+  /* Prevent iOS/Android automatic zoom when a form field is focused */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  /* Comfortable, native 44px touch targets (buttons only, so inline text
+     links and table cells keep their natural sizes) */
+  button,
+  [role="button"] {
+    min-height: 44px;
+  }
+
+  /* No rubber-band scroll past the edges on phones */
+  body {
+    overscroll-behavior-y: none;
+  }
+
+  /* Bottom navigation sits above the gesture-strip on notched phones */
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "brand": {
+    "name": "Vikoba Kidigitali",
+    "tagline": "बचत और ऋण सहकारी समिति"
+  },
+  "nav": {
+    "dashboard": "डैशबोर्ड",
+    "members": "सदस्य",
+    "accounts": "खाते",
+    "transactions": "लेन-देन",
+    "loans": "ऋण",
+    "expenses": "व्यय",
+    "settings": "सेटिंग्स",
+    "help": "सहायता",
+    "users": "उपयोगकर्ता",
+    "sms": "एसएमएस",
+    "emails": "ईमेल",
+    "whatsapp": "व्हाट्सएप",
+    "logout": "लॉगआउट"
+  },
+  "common": {
+    "profile": "प्रोफ़ाइल",
+    "login": "लॉग इन",
+    "save": "सहेजें",
+    "cancel": "रद्द करें",
+    "loading": "लोड हो रहा है...",
+    "search": "खोज",
+    "theme": "थीम बदलें"
+  },
+  "auth": {
+    "welcomeBack": "वापसी पर स्वागत है",
+    "welcomeSubtitle": "शुरू करने के लिए कुछ और क्लिक",
+    "welcomeDescription": "वापसी पर स्वागत है! हमें आपको फिर देखकर खुशी हुई। जारी रखने के लिए अपनी जानकारी दर्ज करें।",
+    "loginTitle": "वापसी पर स्वागत है!",
+    "email": "ईमेल",
+    "password": "पासवर्ड",
+    "forgotPassword": "पासवर्ड भूल गए?",
+    "dontHaveAccount": "खाता नहीं है?",
+    "signUp": "साइन अप",
+    "demoLogin": "डेमो लॉगिन",
+    "demoNote": "निःशुल्क डेमो सर्वर — जिम्मेदारी से उपयोग करें। ऐप या एक्सेस अधिकारों का दुरुपयोग न करें।"
+  },
+  "language": {
+    "label": "भाषा",
+    "english": "अंग्रेज़ी",
+    "swahili": "स्वाहिली"
+  },
+  "footer": {
+    "rights": "सर्वाधिकार सुरक्षित।"
+  }
+}

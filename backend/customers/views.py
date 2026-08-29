@@ -1,0 +1,80 @@
+from django.shortcuts import render, HttpResponse
+from rest_framework import viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import BasePermission
+from rest_framework.response import Response
+from django.db.models import Sum
+
+from .models import Customer, Account, Transaction, Loan
+from .serializers import CustomerSerializer, AccountSerializer, TransactionSerializer, LoanSerializer
+from users.permissions import FULL_ACCESS_ROLES, HasAccountAccess, HasLoanAccess, HasMemberAccess, HasTransactionAccess, has_role
+
+
+class DestroyRequiresFullAccess(BasePermission):
+    """Customer records hold personal data; only admins/managers may delete them."""
+
+    def has_permission(self, request, view):
+        if getattr(view, "action", None) == "destroy":
+            return has_role(request.user, FULL_ACCESS_ROLES)
+        return True
+
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    queryset = Customer.objects.all()
+    serializer_class = CustomerSerializer
+    permission_classes = [HasMemberAccess, DestroyRequiresFullAccess]
+
+
+class AccountViewSet(viewsets.ModelViewSet):
+    queryset = Account.objects.all()
+    serializer_class = AccountSerializer
+    permission_classes = [HasAccountAccess]
+
+    def get_queryset(self):
+        queryset = Account.objects.all()
+        customer_id = self.request.query_params.get('customer_id')
+        if customer_id:
+            queryset = queryset.filter(customer=customer_id)
+        return queryset
+
+    @action(detail=False, methods=['get'])
+    def total_balance(self, request):
+        total = Account.objects.aggregate(total_balance=Sum('balance'))[
+            'total_balance']
+        return Response({'total_balance': total})
+
+
+class TransactionViewSet(viewsets.ModelViewSet):
+    queryset = Transaction.objects.all()
+    serializer_class = TransactionSerializer
+    permission_classes = [HasTransactionAccess]
+
+    def get_queryset(self):
+        queryset = Transaction.objects.all()
+        account_number = self.request.query_params.get('account_number')
+        customer_id = self.request.query_params.get('customer_id')
+        # get all transactions for a particular account
+        if account_number:
+            queryset = queryset.filter(account=account_number)
+        # get all transactions for a particular customer
+        elif customer_id:
+            queryset = queryset.filter(account__customer=customer_id)
+        return queryset
+
+
+class LoanViewSet(viewsets.ModelViewSet):
+    queryset = Loan.objects.all()
+    serializer_class = LoanSerializer
+    permission_classes = [HasLoanAccess]
+
+    def get_queryset(self):
+        queryset = Loan.objects.all()
+        account_number = self.request.query_params.get('account_number')
+        customer_id = self.request.query_params.get('customer_id')
+        # get all loans for a particular customer
+        if customer_id:
+            queryset = queryset.filter(account__customer=customer_id)
+        # get all loans for a particular account
+        elif account_number:
+            queryset = queryset.filter(account=account_number)
+        return queryset
