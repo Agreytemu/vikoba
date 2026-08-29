@@ -17,6 +17,13 @@ const isConfigured = () =>
 // the same credentials instead of starting from a blank slate.
 const inMemoryCache = new Map();
 
+// The Supabase-backed state is also cached per session for the same reason:
+// baileys mutates `state.creds` in memory during pairing, and the 515 restart
+// fires almost immediately after. Re-reading from Supabase on reconnect can
+// race the pending save and lose the just-acquired credentials, so we reuse the
+// same in-memory object (which saveCreds still persists to Supabase).
+const supabaseCache = new Map();
+
 function authHeaders() {
   return {
     apikey: config.supabaseServiceRoleKey,
@@ -57,6 +64,7 @@ async function deleteAuth(sessionId) {
     inMemoryCache.delete(sessionId);
     return;
   }
+  supabaseCache.delete(sessionId);
   const url = `${tableUrl()}?session_id=eq.${encodeURIComponent(sessionId)}`;
   const response = await fetch(url, {
     method: "DELETE",
@@ -75,6 +83,10 @@ async function deleteAuth(sessionId) {
  * debounced every few seconds and flushed on shutdown.
  */
 async function useSupabaseAuthState(sessionId) {
+  if (supabaseCache.has(sessionId)) {
+    return supabaseCache.get(sessionId);
+  }
+
   if (!isConfigured()) {
     throw new Error(
       "Supabase auth storage is not configured (SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY)",
@@ -144,7 +156,7 @@ async function useSupabaseAuthState(sessionId) {
   let flushing = false;
   const queue = [];
 
-  return {
+  const result = {
     state,
     // creds.update fires at critical moments (registration, connection open) —
     // persist immediately, keyed by creds.hash so a rapid burst writes once.
@@ -178,6 +190,8 @@ async function useSupabaseAuthState(sessionId) {
       }
     },
   };
+  supabaseCache.set(sessionId, result);
+  return result;
 }
 
 // Track all auth states so we can flush the whole store on shutdown.
