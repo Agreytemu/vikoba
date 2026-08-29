@@ -45,6 +45,7 @@ const WhatsAppConnectModal: FC<Props> = ({
   const createSession = useCreateWhatsAppSession();
   const [sessionId, setSessionId] = useState<string>();
   const [phone, setPhone] = useState("");
+  const [numberLabel, setNumberLabel] = useState("");
   const [pairingCode, setPairingCode] = useState("");
   const [showCodeForm, setShowCodeForm] = useState(false);
 
@@ -83,7 +84,10 @@ const WhatsAppConnectModal: FC<Props> = ({
       {
         owner_type: owner,
         group: groupId ?? null,
-        display_name: defaultDisplayName,
+        display_name:
+          owner === "ADMIN"
+            ? numberLabel.trim() || "Admin device"
+            : defaultDisplayName,
       },
       {
         onSuccess: (session) => setSessionId(session.session_id),
@@ -91,6 +95,14 @@ const WhatsAppConnectModal: FC<Props> = ({
           toast.error(getApiErrorMessage(error), { autoClose: 4000 }),
       },
     );
+  };
+
+  const handleConnectAnother = () => {
+    setSessionId(undefined);
+    setNumberLabel("");
+    setPhone("");
+    setPairingCode("");
+    setShowCodeForm(false);
   };
 
   const handlePairCode = (e: React.FormEvent) => {
@@ -125,16 +137,38 @@ const WhatsAppConnectModal: FC<Props> = ({
             </div>
             <p>
               {groupId
-                ? "Receipts for this group's confirmed contributions will be sent from the chairperson's WhatsApp."
-                : "System messages (verification codes and fallback receipts) will be sent from this device."}
+                ? "Receipts for this group's confirmed contributions will be sent from the chairperson's WhatsApp. Scan the QR with that phone."
+                : "Generate a QR code, then scan it with the WhatsApp account you want to link. You can connect more than one device."}
             </p>
-            <Button
-              type="button"
-              onClick={handleStart}
-              disabled={createSession.isPending}
-            >
-              {createSession.isPending ? <Spinner /> : "Start pairing"}
-            </Button>
+
+            {owner === "ADMIN" ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleStart();
+                }}
+                className="mx-auto max-w-sm space-y-3"
+              >
+                <FormInput
+                  type="tel"
+                  label="WhatsApp number for this device"
+                  placeholder="+255712345678"
+                  value={numberLabel}
+                  onChange={(e) => setNumberLabel(e.target.value)}
+                />
+                <Button type="submit" disabled={createSession.isPending}>
+                  {createSession.isPending ? <Spinner /> : "Generate QR code"}
+                </Button>
+              </form>
+            ) : (
+              <Button
+                type="button"
+                onClick={handleStart}
+                disabled={createSession.isPending}
+              >
+                {createSession.isPending ? <Spinner /> : "Generate QR code"}
+              </Button>
+            )}
           </div>
         ) : (
           <div className="space-y-4 text-center">
@@ -158,6 +192,12 @@ const WhatsAppConnectModal: FC<Props> = ({
               <p className="text-sm">
                 Connected as <span className="font-semibold">+{statusQuery.data.phone}</span>
               </p>
+            )}
+
+            {currentStatus === "connected" && owner === "ADMIN" && (
+              <Button type="button" variant="outline" onClick={handleConnectAnother}>
+                Connect another device
+              </Button>
             )}
 
             {currentStatus === "awaiting_pairing" && (
@@ -255,7 +295,7 @@ const WhatsAppConnectModal: FC<Props> = ({
               currentStatus === "error" ||
               currentStatus === "disconnected") && (
               <Button type="button" variant="outline" onClick={handleStart} disabled={createSession.isPending}>
-                {createSession.isPending ? <Spinner /> : "Restart pairing"}
+                {createSession.isPending ? <Spinner /> : "Regenerate QR code"}
               </Button>
             )}
           </div>
