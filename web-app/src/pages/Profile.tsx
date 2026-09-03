@@ -3,8 +3,10 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 // constants
-import { apiBaseUrl } from "@/constants";
+import { toast } from "react-toastify";
+import { resolveMediaUrl } from "@/constants";
 import { useGetUserProfile, useUpdateUserProfile } from "@/hooks/api/profile";
+import { getApiErrorMessage } from "@/lib/utils";
 // components
 import Button from "@/components/Button";
 import Spinner from "@/components/Spinner";
@@ -32,8 +34,8 @@ const formSchema = z.object({
     .any()
     .optional()
     .refine(
-      (file) => !file || !(file instanceof File) || file.size < 7000000,
-      { message: "Your resume must be less than 7MB." },
+      (file) => !file || !(file instanceof File) || file.size < 7 * 1024 * 1024,
+      { message: "Image must be less than 7MB." },
     ),
 });
 
@@ -77,20 +79,30 @@ const Profile = () => {
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files && event.target.files[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setPreview(imageUrl);
-      form.setValue("profile_image", file, { shouldValidate: true });
+    if (!file) return;
+    if (file.size > 7 * 1024 * 1024) {
+      toast.error("Image is too large — must be less than 7MB. Please choose a smaller image.", { autoClose: 3000 });
+      event.target.value = "";
+      return;
     }
+    const imageUrl = URL.createObjectURL(file);
+    setPreview(imageUrl);
+    form.setValue("profile_image", file, { shouldValidate: true });
   };
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    await updateProfile({
-      username: values.username,
-      email: values.email,
-      profile_image:
-        values.profile_image instanceof File ? values.profile_image : undefined,
-    });
+    try {
+      await updateProfile({
+        username: values.username,
+        email: values.email,
+        profile_image:
+          values.profile_image instanceof File ? values.profile_image : undefined,
+      });
+      toast.success("Profile updated.", { autoClose: 2000 });
+      setPreview("");
+    } catch (error: unknown) {
+      toast.error(getApiErrorMessage(error as Error, "Could not update profile"), { autoClose: 3000 });
+    }
   };
 
   const currentProfileImage =
@@ -101,9 +113,7 @@ const Profile = () => {
         : "";
 
   const resolvedProfileImage = currentProfileImage
-    ? currentProfileImage.startsWith("http")
-      ? currentProfileImage
-      : `${apiBaseUrl}${currentProfileImage}`
+    ? resolveMediaUrl(currentProfileImage)
     : ProfilePlaceholder;
 
   if (isLoading) {

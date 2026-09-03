@@ -1,4 +1,5 @@
 import { FC, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import Modal from "@/components/ui/Modal";
 import LucideIcon from "@/components/LucideIcon";
 import PermissionSheet from "@/components/ui/PermissionSheet";
@@ -26,9 +27,20 @@ const KycUploadButton: FC<KycUploadButtonProps> = ({ uploaded, uploading, onUplo
     input?.click();
   };
 
+  const MAX_KYC_BYTES = 10 * 1024 * 1024;
+
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) onUpload(file);
+    if (!file) {
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_KYC_BYTES) {
+      toast.error("File is too large — must be 10MB or less. Please compress the image or choose a smaller file.", { autoClose: 3500 });
+      e.target.value = "";
+      return;
+    }
+    onUpload(file);
     e.target.value = "";
   };
 

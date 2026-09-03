@@ -13,7 +13,7 @@ interface VerificationGateProps {
 /**
  * Modal shown to unverified members when they try a verified-only feature
  * (create groups, buy hisa, invite others). Sends them to complete their
- * onboarding on the member dashboard.
+ * onboarding in their profile.
  */
 const VerificationGate: FC<VerificationGateProps> = ({
   open,
@@ -37,7 +37,7 @@ const VerificationGate: FC<VerificationGateProps> = ({
             type="button"
             onClick={() => {
               onClose();
-              navigate("/", { replace: true });
+              navigate("/profile", { replace: true });
             }}
           >
             Finish verification

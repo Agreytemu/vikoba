@@ -114,6 +114,30 @@ const MemberHome: FC = () => {
         )}
       </div>
 
+      {!profile.is_verified && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+              <LucideIcon name="ShieldAlert" size={18} />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                Finish your verification to unlock loans & withdrawals
+              </p>
+              <p className="text-xs text-amber-700/80 dark:text-amber-300/80">
+                Verify phone, add next of kin and upload ID, passport & signature in your profile.
+              </p>
+            </div>
+          </div>
+          <Link
+            to="/profile"
+            className="inline-flex items-center gap-2 rounded-xl bg-amber-600 px-4 py-2 text-sm font-medium text-white hover:bg-amber-700 transition"
+          >
+            <LucideIcon name="ArrowRight" size={16} /> Finish verification
+          </Link>
+        </div>
+      )}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900">
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
@@ -228,6 +252,14 @@ const MemberHome: FC = () => {
           >
             <LucideIcon name="Coins" size={18} /> Buy hisa
           </Link>
+          {!profile.is_verified && (
+            <Link
+              to="/profile"
+              className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-blue-700"
+            >
+              <LucideIcon name="ShieldCheck" size={18} /> Finish verification
+            </Link>
+          )}
           <Link
             to="/profile"
             className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"

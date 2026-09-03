@@ -148,6 +148,10 @@ const VerificationWorkflow: FC = () => {
   };
 
   const handleUploadKyc = (documentType: KycDocumentType, file: File) => {
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File is too large — must be 10MB or less. Please compress the image or choose a smaller file.", { autoClose: 3500 });
+      return;
+    }
     uploadKyc.mutate(
       { documentType, file },
       {

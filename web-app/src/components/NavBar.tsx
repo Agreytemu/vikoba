@@ -15,7 +15,7 @@ import { Auth } from "@/contexts/AuthContext";
 import { useUserProfileInfo } from "@/hooks/useUserProfile";
 import { useLogout } from "@/hooks/api/auth";
 import { SYSTEM_NAME, LOGO_URL } from "@/lib/system";
-import { apiBaseUrl } from "@/constants";
+import { resolveMediaUrl } from "@/constants";
 
 /**
  * Fixed top app bar. On phones it acts as the native app bar (no hamburger,
@@ -33,9 +33,10 @@ const NavBar: FC = () => {
   const { logout } = Auth();
   const { mutate: endServerSession } = useLogout();
 
+  const rawImage = profile?.profile?.profile_image;
   const profileImage =
-    profile?.profile?.profile_image
-      ? `${apiBaseUrl}${profile.profile.profile_image}`
+    typeof rawImage === "string" && rawImage
+      ? resolveMediaUrl(rawImage)
       : ProfilePlaceholder;
 
   const handleShowDropdown = () => {
