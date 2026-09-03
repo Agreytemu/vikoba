@@ -6,6 +6,7 @@ const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 20000,
 });
 
 // Custom flag consumed by the request interceptor to bypass auth/refresh logic.
@@ -120,9 +121,31 @@ api.interceptors.request.use(
   },
 );
 
+const FRIENDLY_SERVER_ERROR =
+  "Oops! Our server is having a tough moment. Please refresh your page and try again in a moment. If it keeps happening, check your internet connection.";
+const FRIENDLY_TIMEOUT_ERROR =
+  "This is taking longer than expected. Please refresh your page, check your internet connection, and try again.";
+const FRIENDLY_NETWORK_ERROR =
+  "Your internet connection seems unstable. Please check your connection, refresh the page, and try again.";
+
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    // Network / timeout / server friendly mapping before any 401 logic
+    const status = error.response?.status;
+    const code = error.code as string | undefined;
+    const msg = typeof error.message === "string" ? error.message : "";
+
+    if (code === "ECONNABORTED" || /timeout/i.test(msg)) {
+      return Promise.reject({ detail: FRIENDLY_TIMEOUT_ERROR });
+    }
+    if (!error.response && (code === "ERR_NETWORK" || /Network Error/i.test(msg) || error.request)) {
+      return Promise.reject({ detail: FRIENDLY_NETWORK_ERROR });
+    }
+    if (typeof status === "number" && status >= 500) {
+      return Promise.reject({ detail: FRIENDLY_SERVER_ERROR });
+    }
+
     const originalRequest = error.config;
 
     // Check if error is 401 (Unauthorized) and not already retried

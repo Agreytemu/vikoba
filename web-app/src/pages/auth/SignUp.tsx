@@ -31,6 +31,9 @@ const SignUp: FC = () => {
  const { mutate: register, isPending: isRegisterPending } = useRegister();
  
 
+  const friendlyRegisterFallback =
+    "Oops! Our server is having a tough moment or your connection is slow. Please refresh the page, check your internet, and try again.";
+
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== password2) {
@@ -54,7 +57,7 @@ const SignUp: FC = () => {
         },
         onError: (error) => {
           // setLoading(false);
-          toast.error(getApiErrorMessage(error, "Unable to create account"), { autoClose: 3000 });
+          toast.error(getApiErrorMessage(error, friendlyRegisterFallback), { autoClose: 4000 });
         },
       },
       )
@@ -143,6 +146,11 @@ const SignUp: FC = () => {
                 variant="primary"
                 className="w-full"
               />
+              {isRegisterPending && (
+                <p className="mt-3 text-center text-xs text-slate-500 dark:text-slate-400">
+                  Taking longer than expected? Please check your internet and refresh the page, then try again.
+                </p>
+              )}
             </form>
             <div className="my-6 border-t border-slate-100 dark:border-slate-800" />
             <p className="text-center text-sm text-slate-600 dark:text-slate-400">

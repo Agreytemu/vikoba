@@ -34,6 +34,10 @@ const SignIn: FC = () => {
   const { mutate: pinLogin, isPending: isPinPending } = usePinLogin();
   const { login } = Auth();
 
+  // Friendly fallback increases UX when server is slow or network is unstable
+  const friendlyLoginFallback =
+    "Oops! Our server is having a tough moment or your connection is slow. Please refresh the page, check your internet, and try again.";
+
   // handle login
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +53,7 @@ const SignIn: FC = () => {
         onError: (error) => {
           const body = error as { email_not_verified?: boolean; detail?: string };
           setEmailNotVerified(Boolean(body?.email_not_verified));
-          toast.error(getApiErrorMessage(error, "Unable to log in"), { autoClose: 2000 });
+          toast.error(getApiErrorMessage(error, friendlyLoginFallback), { autoClose: 4000 });
         },
       },
     );
@@ -78,12 +82,14 @@ const SignIn: FC = () => {
           if (body?.pin_not_set) {
             toast.info(body.detail || "Set up your secret PIN first.", { autoClose: 6000 });
           } else {
-            toast.error(getApiErrorMessage(error, "Quick login failed"), { autoClose: 2500 });
+            toast.error(getApiErrorMessage(error, friendlyLoginFallback), { autoClose: 4000 });
           }
         },
       },
     );
   };
+
+  const isBusy = isRegisterPending || isPinPending;
 
   return (
     <div className="flex min-h-screen w-full items-center justify-center bg-paper px-4 py-10 text-ink dark:bg-[#0d1117] dark:text-slate-100">
@@ -192,6 +198,11 @@ const SignIn: FC = () => {
                   variant="primary"
                   className="w-full"
                 />
+                {isBusy && (
+                  <p className="mt-3 text-center text-xs text-slate-500 dark:text-slate-400">
+                    Taking longer than expected? Please check your internet and refresh the page, then try again.
+                  </p>
+                )}
               </form>
             ) : (
               <form className="space-y-4" onSubmit={handlePinLogin}>
@@ -217,6 +228,11 @@ const SignIn: FC = () => {
                   variant="primary"
                   className="w-full"
                 />
+                {isBusy && (
+                  <p className="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">
+                    Taking longer than expected? Please check your internet and refresh the page, then try again.
+                  </p>
+                )}
                 <p className="text-center text-xs text-slate-600 dark:text-slate-400">
                   <Link
                     className="font-medium text-blue-700 hover:underline dark:text-blue-300"
