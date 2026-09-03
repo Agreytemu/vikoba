@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import Button from "@/components/Button";
 import FormInput from "@/components/FormInput";
 import Spinner from "@/components/Spinner";
+import { SkeletonTable } from "@/components/Skeleton";
 import LucideIcon from "@/components/LucideIcon";
 import Modal from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/badge";
@@ -147,7 +148,7 @@ const MemberLoans = () => {
       <EligibilityCard />
 
       {isLoading ? (
-        <div className="flex justify-center py-16"><Spinner /></div>
+        <SkeletonTable rows={3} />
       ) : loans && loans.length > 0 ? (
         <div className="space-y-3">
           {loans.map((loan) => (
@@ -409,7 +410,7 @@ const LoanDetailModal = ({ applicationNumber, onClose }: { applicationNumber: st
   if (!loan) {
     return (
       <Modal isOpen onClose={onClose} title="Loan application">
-        {isLoading ? <div className="flex justify-center py-8"><Spinner /></div> : <p>{getApiErrorMessage(error, "Application not found.")}</p>}
+        {isLoading ? <SkeletonTable rows={3} /> : <p>{getApiErrorMessage(error, "Application not found.")}</p>}
       </Modal>
     );
   }
@@ -548,7 +549,7 @@ const EligibilityCard = () => {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900">
         <h2 className="font-display text-lg font-semibold">Borrowing power</h2>
-        {isLoading ? <div className="flex justify-center py-4"><Spinner /></div> : null}
+        {isLoading ? <SkeletonTable rows={2} /> : null}
       </div>
     );
   }

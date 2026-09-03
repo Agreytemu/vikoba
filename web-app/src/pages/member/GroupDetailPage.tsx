@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import Spinner from "@/components/Spinner";
+import { SkeletonPage } from "@/components/Skeleton";
 import LucideIcon from "@/components/LucideIcon";
 import { Button } from "@/components/ui/button";
 import FormInput from "@/components/FormInput";
@@ -159,11 +160,7 @@ const GroupDetailPage: FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex justify-center py-24">
-        <Spinner />
-      </div>
-    );
+    return <SkeletonPage />;
   }
 
   if (isError || !group) {

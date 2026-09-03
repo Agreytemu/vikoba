@@ -5,7 +5,7 @@ import { ColumnDef } from "@tanstack/react-table";
 // components
 import { DataTable } from "@/components/data-table";
 import LucideIcon from "@/components/LucideIcon";
-import Spinner from "@/components/Spinner";
+import { SkeletonTable } from "@/components/Skeleton";
 import { useGetAccounts } from "@/hooks/api/accounts";
 import { AccountProps } from "@/services/accounts";
 import AddAccountForm from "@/components/accounts/AddAccountForm";
@@ -18,12 +18,7 @@ const Accounts = () => {
 
   const { data: accounts, isLoading, error } = useGetAccounts();
   // Show loading indicator when loading
-  if (isLoading)
-    return (
-      <div className="w-full min-h-screen flex justify-center items-center">
-        <Spinner />
-      </div>
-    );
+  if (isLoading) return <SkeletonTable rows={6} />;
 
   // handling error
   if (error)

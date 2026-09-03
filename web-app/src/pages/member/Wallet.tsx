@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import Button from "@/components/Button";
 import FormInput from "@/components/FormInput";
 import Spinner from "@/components/Spinner";
+import { SkeletonPage } from "@/components/Skeleton";
 import LucideIcon from "@/components/LucideIcon";
 import Modal from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/badge";
@@ -34,9 +35,9 @@ const Wallet: FC = () => {
   const { data: me } = useGetMyMemberProfile(isMember);
   const isVerified = isMember ? Boolean(me?.is_verified) : false;
 
-  const { data: accounts } = useGetMyAccounts();
-  const { data: deposits } = useGetMyDeposits(isMember);
-  const { data: withdrawals } = useGetMyWithdrawals(isMember);
+  const { data: accounts, isLoading: accountsLoading } = useGetMyAccounts();
+  const { data: deposits, isLoading: depositsLoading } = useGetMyDeposits(isMember);
+  const { data: withdrawals, isLoading: withdrawalsLoading } = useGetMyWithdrawals(isMember);
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
   const { data: statement } = useGetMyStatement(selectedAccount ?? undefined);
 
@@ -46,6 +47,10 @@ const Wallet: FC = () => {
 
   if (!isMember) {
     return <p className="text-slate-500">This page is for members.</p>;
+  }
+
+  if (accountsLoading || depositsLoading || withdrawalsLoading) {
+    return <SkeletonPage />;
   }
 
   const showWithdraw = () => {

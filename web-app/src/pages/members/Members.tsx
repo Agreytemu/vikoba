@@ -3,7 +3,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
 // components
 import { DataTable } from "@/components/data-table";
-import Spinner from "@/components/Spinner";
+import { SkeletonTable } from "@/components/Skeleton";
 import CopyToClipboard from "@/components/ui/clipboard";
 // Services - API calls
 import { MemberProps } from "@/services/members";
@@ -80,12 +80,7 @@ const columns: ColumnDef<MemberProps>[] = [
 const Members = () => {
   const { data: members, error, isLoading } = useGetMembers();
   // Show loading indicator when loading
-  if (isLoading)
-    return (
-      <div className="w-full min-h-screen flex justify-center items-center">
-        <Spinner />
-      </div>
-    );
+  if (isLoading) return <SkeletonTable rows={6} />;
 
   // handling error
   if (error)

@@ -10,6 +10,7 @@ import { getApiErrorMessage } from "@/lib/utils";
 // components
 import Button from "@/components/Button";
 import Spinner from "@/components/Spinner";
+import { SkeletonProfile } from "@/components/Skeleton";
 import LucideIcon from "@/components/LucideIcon";
 import {
   Form,
@@ -117,11 +118,7 @@ const Profile = () => {
     : ProfilePlaceholder;
 
   if (isLoading) {
-    return (
-      <div className="w-full min-h-screen flex justify-center items-center">
-        <Spinner />
-      </div>
-    );
+    return <SkeletonProfile />;
   }
 
   if (error) {

@@ -29,6 +29,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Spinner from "@/components/Spinner";
+import { SkeletonPage } from "@/components/Skeleton";
 import LucideIcon from "@/components/LucideIcon";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useGetAccounts } from "@/hooks/api/accounts";
@@ -139,7 +140,7 @@ const DashBoard = () => {
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
     .slice(0, 5), [loans]);
 
-  if (dashboardLoading) return <div className="flex min-h-screen items-center justify-center"><Spinner /></div>;
+  if (dashboardLoading) return <SkeletonPage />;
 
   return (
     <div className="mx-auto flex max-w-7xl flex-col gap-6 py-2 md:gap-7">

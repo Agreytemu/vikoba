@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import Spinner from "@/components/Spinner";
+import { SkeletonGrid } from "@/components/Skeleton";
 import LucideIcon from "@/components/LucideIcon";
 import Modal from "@/components/ui/Modal";
 import { Button } from "@/components/ui/button";
@@ -176,9 +177,7 @@ const GroupsPage: FC = () => {
       )}
 
       {isInvitesLoading || loading ? (
-        <div className="flex justify-center py-16">
-          <Spinner />
-        </div>
+        <SkeletonGrid count={4} />
       ) : invitations && invitations.length > 0 ? (
         <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/30">
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-900 dark:text-blue-100">

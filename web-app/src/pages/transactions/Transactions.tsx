@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/data-table";
-import Spinner from "@/components/Spinner";
+import { SkeletonTable } from "@/components/Skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Modal from "@/components/ui/Modal";
@@ -59,7 +59,7 @@ const Transactions = () => {
     },
   ], [currency]);
 
-  if (isLoading) return <div className="flex min-h-screen items-center justify-center"><Spinner /></div>;
+  if (isLoading) return <SkeletonTable rows={5} />;
   if (error) return <div className="flex min-h-screen items-center justify-center">Unable to load transactions.</div>;
 
   return (

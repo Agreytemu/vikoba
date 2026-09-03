@@ -9,6 +9,7 @@ import {
 import Button from "@/components/Button";
 import FormInput from "@/components/FormInput";
 import Spinner from "@/components/Spinner";
+import { SkeletonCard, SkeletonPage } from "@/components/Skeleton";
 import LucideIcon from "@/components/LucideIcon";
 import { getApiErrorMessage } from "@/lib/utils";
 import { useGetMyGroups, useGetMyGroupsSummary } from "@/hooks/api/groups";
@@ -77,11 +78,7 @@ const MemberHome: FC = () => {
   };
 
   if (isLoading) {
-    return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <Spinner />
-      </div>
-    );
+    return <SkeletonPage />;
   }
 
   if (!profile) {
