@@ -59,13 +59,21 @@ def _coupon_code_block(code: str, ttl_minutes: int, footer_line: str) -> str:
 """
 
 
-def _verification_body(code: str, ttl_minutes: int) -> str:
+def _verification_body(code: str, ttl_minutes: int, email: str = "") -> str:
+    import os, urllib.parse
+    frontend = os.environ.get("FRONTEND_URL", "https://vikoba-theta.vercel.app").rstrip("/")
+    qs = urllib.parse.urlencode({"email": email, "code": code}) if email else f"code={code}"
     return f"""
       <p>Hello,</p>
       <p>To keep your account secure we need to confirm your email address.
-         Use the 6-digit verification code below:</p>
+         Use the 6-digit code below or tap the button to confirm instantly:</p>
       {_coupon_code_block(code, ttl_minutes, "")}
-"""
+      <p style="margin:20px 0;">
+        <a href="{frontend}/verify-email?{qs}"
+           style="display:inline-block;background-color:#115036;color:#ffffff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:10px;">Confirm email and go to login</a>
+      </p>
+      <p style="font-size:12px;color:#64748b;">Link expires in {ttl_minutes} minutes and can only be used once. If you didn't create an account, ignore this email.</p>
+ """
 
 
 def _pin_setup_body(code: str, ttl_minutes: int) -> str:
@@ -110,7 +118,7 @@ def send_verification_email(code_obj: EmailVerificationCode) -> tuple[bool, str 
     subject = f"Your {settings.SYSTEM_NAME} verification code: {code_obj.code}"
     body_html = _wrap_html(
         "Verify your email address",
-        _verification_body(code_obj.code, ttl),
+        _verification_body(code_obj.code, ttl, code_obj.user.email),
     )
     try:
         send_mail(
