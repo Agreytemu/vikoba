@@ -748,31 +748,44 @@ const Onboarding: FC = () => {
             </div>
           )}
 
-          {/* STEP 5 — Plan */}
+          {/* STEP 5 — Plan (official pattern: Free muted left, paid middle "Most Popular") */}
           {step === 5 && (
             <div className="space-y-5">
               <h2 className="font-display text-[18px] font-semibold text-[#1A1A1A]">Choose your plan</h2>
-              <p className="text-[13px] text-[#6B6B6B]">Select a plan to continue. You can skip and stay on Free.</p>
+              <p className="text-[13px] text-[#6B6B6B]">Start free. Upgrade when your group grows. You can skip and stay on Free.</p>
 
               {plansLoading ? (
                 <div className="flex items-center justify-center py-10">
                   <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#E8E2D9] border-t-[#115036]" />
                 </div>
               ) : (
-                <div className="grid gap-4 sm:grid-cols-2">
+                <div className="grid gap-4 pt-2 sm:grid-cols-3 sm:items-stretch">
                   {displayedPlans.map((plan: { id: string | number; name: string; price: string | number; currency: string; interval?: string; features?: string[] }, idx: number) => {
                     const isFree = String(plan.name).toLowerCase() === "free" || String(plan.id).toLowerCase() === "free";
+                    const isPopular = !isFree && idx === 1;
                     const isSelected = form.selected_plan === plan.id || (form.selected_plan === null && isFree);
                     const priceDisplay = isFree ? "Free" : `${plan.price} ${plan.currency}`;
+                    const tagline = isFree ? "For trying out your group" : isPopular ? "For growing groups" : "For established groups";
                     return (
                       <button
                         key={String(plan.id) + idx}
                         type="button"
                         onClick={() => setForm({ ...form, selected_plan: isFree ? null : plan.id })}
-                        className={`text-left rounded-2xl border p-5 transition ${
-                          isSelected ? "border-[#115036] bg-[#EEF6F0] shadow-[0_4px_16px_rgba(17,80,54,0.08)]" : "border-[#E8E2D9] bg-[#FDFBF7] hover:border-[#115036]/30 hover:bg-white"
+                        className={`relative flex flex-col rounded-2xl border p-5 text-left transition ${
+                          isPopular
+                            ? "border-2 border-[#115036] bg-[#EEF6F0] shadow-[0_8px_28px_rgba(17,80,54,0.14)]"
+                            : isSelected
+                              ? "border-[#115036] bg-[#EEF6F0] shadow-[0_4px_16px_rgba(17,80,54,0.08)]"
+                              : isFree
+                                ? "border-[#E8E2D9] bg-[#F7F5F1] hover:border-[#115036]/30"
+                                : "border-[#E8E2D9] bg-white hover:border-[#115036]/30"
                         }`}
                       >
+                        {isPopular && (
+                          <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#115036] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-white">
+                            Most Popular
+                          </span>
+                        )}
                         <div className="flex items-center justify-between">
                           <h3 className="text-[15px] font-semibold text-[#1A1A1A]">{plan.name}</h3>
                           {isSelected && (
@@ -781,20 +794,35 @@ const Onboarding: FC = () => {
                             </span>
                           )}
                         </div>
-                        <p className="mt-1 text-[14px] font-semibold text-[#115036]">
+                        <p className="mt-0.5 text-[12px] text-[#6B6B6B]">{tagline}</p>
+                        <p className={`mt-2 ${isFree ? "text-[22px]" : "text-[26px]"} font-bold tracking-tight ${isFree ? "text-[#3D3D3D]" : "text-[#115036]"}`}>
                           {priceDisplay}
                           {!isFree && plan.interval && <span className="text-[11px] font-medium text-[#6B6B6B]"> / {plan.interval}</span>}
                         </p>
                         {plan.features && plan.features.length > 0 && (
-                          <ul className="mt-3 space-y-1">
-                            {plan.features.slice(0, 3).map((f: string) => (
+                          <ul className="mt-3 space-y-1.5">
+                            {plan.features.slice(0, 4).map((f: string) => (
                               <li key={f} className="flex gap-1.5 text-[12px] leading-4 text-[#3D3D3D]">
-                                <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[#115036]" />
+                                <Check size={13} className={`mt-0.5 shrink-0 ${isFree ? "text-[#9A9A9A]" : "text-[#115036]"}`} />
                                 {f}
                               </li>
                             ))}
                           </ul>
                         )}
+                        <span
+                          className={`mt-4 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-[13px] font-semibold ${
+                            isSelected
+                              ? "bg-[#115036] text-white"
+                              : isPopular
+                                ? "bg-[#115036] text-white"
+                                : "border border-[#115036]/30 bg-white text-[#115036]"
+                          }`}
+                        >
+                          {isSelected ? "Selected" : isFree ? "Start free" : `Choose ${plan.name}`}
+                        </span>
+                        <span className="mt-2 text-center text-[11px] text-[#6B6B6B]">
+                          {isFree ? "No credit card required" : "Cancel anytime"}
+                        </span>
                       </button>
                     );
                   })}
