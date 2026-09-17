@@ -85,10 +85,11 @@ class User(AbstractUser):
 
 
 class EmailVerificationCode(models.Model):
-    """One-time, expiring 6-digit code used to verify a user's email address."""
+    """One-time, expiring 6-digit code used to verify a user's email address.
+    Link token expires after 15 minutes (button returns to login)."""
 
     MAX_ATTEMPTS = 5
-    TTL_MINUTES = 30
+    TTL_MINUTES = 15
 
     user = models.ForeignKey(
         User,

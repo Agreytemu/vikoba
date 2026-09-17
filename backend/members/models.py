@@ -71,9 +71,30 @@ class Member(models.Model):
     date_of_birth = models.DateField(blank=True, null=True)
     kra_pin = models.CharField(max_length=100, blank=True, null=True)
     # Address
-    country = models.CharField(max_length=100, blank=True)
+    country = models.CharField(max_length=100, blank=True, default="Tanzania")
     county = models.CharField(max_length=100, blank=True)
     city = models.CharField(max_length=100, blank=True)
+    permanent_address = models.CharField(max_length=255, blank=True)
+    street = models.CharField(max_length=255, blank=True)
+    region = models.CharField(max_length=100, blank=True)
+
+    # Onboarding — Tanzania specific
+    class CitizenshipType(models.TextChoices):
+        BY_BIRTH = "BY_BIRTH", _("By birth")
+        NATURALIZATION = "NATURALIZATION", _("By naturalization / application")
+        MARRIAGE = "MARRIAGE", _("By marriage")
+
+    class Gender(models.TextChoices):
+        MALE = "MALE", _("Male")
+        FEMALE = "FEMALE", _("Female")
+
+    citizenship_type = models.CharField(max_length=20, choices=CitizenshipType.choices, blank=True, null=True)
+    gender = models.CharField(max_length=10, choices=Gender.choices, blank=True, null=True)
+    occupation = models.CharField(max_length=100, blank=True, null=True)
+    preferred_currency = models.CharField(max_length=3, choices=[("TZS", "TZS"), ("USD", "USD")], default="TZS")
+    is_onboarded = models.BooleanField(default=False)
+    onboarded_at = models.DateTimeField(null=True, blank=True)
+    selected_plan = models.ForeignKey("accounts.MembershipPlan", null=True, blank=True, on_delete=models.SET_NULL, related_name="members")
 
     # Status
     status = models.CharField(
