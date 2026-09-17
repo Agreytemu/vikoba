@@ -158,6 +158,16 @@ export const router = createBrowserRouter([
         ),
       },
 
+      // ---------- STANDALONE HELP / CONTACT (no sidebar) ----------
+      {
+        path: "/help",
+        element: (
+          <PwaGate>
+            <Help />
+          </PwaGate>
+        ),
+      },
+
       // ---------- PUBLIC MARKETING ----------
       {
         path: "/landing",
@@ -179,7 +189,6 @@ export const router = createBrowserRouter([
             ),
           },
           { path: "profile", element: <Profile /> },
-          { path: "help", element: <Help /> },
           { path: "settings", element: <Settings /> },
           // Protected member routes — require verified + onboarded
           {

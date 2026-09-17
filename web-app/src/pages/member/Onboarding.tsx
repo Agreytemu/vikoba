@@ -73,17 +73,6 @@ const getMaxDob = () => {
   return d.toISOString().split("T")[0];
 };
 
-const isAtLeast18 = (dob: string) => {
-  if (!dob) return false;
-  const birth = new Date(dob);
-  if (isNaN(birth.getTime())) return false;
-  const today = new Date();
-  let age = today.getFullYear() - birth.getFullYear();
-  const m = today.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-  return age >= 18;
-};
-
 interface StepDef {
   label: string;
   icon: FC<{ size?: number | string; className?: string }>;
@@ -142,6 +131,11 @@ const Onboarding: FC = () => {
   });
 
   const maxDob = useMemo(() => getMaxDob(), []);
+
+  const uploadedSet = useMemo(
+    () => new Set((kycDocs ?? []).map((doc) => doc.document_type)),
+    [kycDocs],
+  );
 
   const phoneVerified = Boolean(profile?.phone_verified);
 
@@ -250,37 +244,9 @@ const Onboarding: FC = () => {
     );
   };
 
-  const validateStep = (s: number): boolean => {
-    const e: Record<string, string> = {};
-    if (s === 1) {
-      if (!phoneVerified) e.phone = "Verify your phone number to continue";
-    }
-    if (s === 2) {
-      if (!form.permanent_address.trim()) e.permanent_address = "Permanent address is required";
-      if (!form.street.trim()) e.street = "Street is required";
-      if (!form.region) e.region = "Region is required";
-    }
-    if (s === 3) {
-      if (!form.citizenship_type) e.citizenship_type = "Citizenship type is required";
-      if (!form.gender) e.gender = "Gender is required";
-      if (!form.date_of_birth) e.date_of_birth = "Date of birth is required";
-      else if (!isAtLeast18(form.date_of_birth)) e.date_of_birth = "You must be at least 18 years old";
-      if (!form.occupation.trim()) e.occupation = "Occupation is required";
-    }
-    if (s === 4) {
-      const uploaded = new Set((kycDocs ?? []).map((d) => d.document_type));
-      const missing = ["NATIONAL_ID", "PASSPORT_PHOTO", "SIGNATURE"].filter(
-        (t) => !uploaded.has(t as KycDocumentType),
-      );
-      if (missing.length > 0) e.kyc = `Upload all documents (missing: ${missing.join(", ")})`;
-      if ((nextOfKin ?? []).length === 0) e.nok = "Add at least one next of kin";
-    }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
   const handleNext = () => {
-    if (!validateStep(step)) return;
+    // UI-only check for now: Next always advances freely. Real validation and
+    // credential checks get re-enabled once the verification backend is solid.
     setErrors({});
     setStep((prev) => Math.min(prev + 1, TOTAL_STEPS));
   };
@@ -363,11 +329,6 @@ const Onboarding: FC = () => {
       },
     );
   };
-
-  const uploadedSet = useMemo(
-    () => new Set((kycDocs ?? []).map((doc) => doc.document_type)),
-    [kycDocs],
-  );
 
   const handleSkipPlan = () => {
     setForm((prev) => ({ ...prev, selected_plan: null }));

@@ -285,8 +285,8 @@ class MemberMeOnboardingView(generics.GenericAPIView):
     """Save onboarding details (address, citizenship, gender, DOB, job, currency, plan).
 
     The standalone onboarding wizard runs all verification steps (phone, KYC,
-    next of kin) and finishes with this call, so only phone verification is
-    required here — the wizard enforces the step order in the UI.
+    next of kin) and finishes with this call. Credential checks are relaxed for
+    now (UI-only flow); real enforcement gets re-enabled later.
     """
     permission_classes = [IsAuthenticated]
 
@@ -294,8 +294,6 @@ class MemberMeOnboardingView(generics.GenericAPIView):
         member = _member_for(request)
         if member is None:
             return Response({"detail": "No member profile is linked to this account."}, status=status.HTTP_400_BAD_REQUEST)
-        if not member.phone_verified:
-            return Response({"detail": "Verify your phone number before onboarding."}, status=status.HTTP_403_FORBIDDEN)
         data = request.data
         # Validate age >=18
         from datetime import date
