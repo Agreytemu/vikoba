@@ -9,7 +9,7 @@ import {
 import Button from "@/components/Button";
 import FormInput from "@/components/FormInput";
 import Spinner from "@/components/Spinner";
-import { SkeletonCard, SkeletonPage } from "@/components/Skeleton";
+import { SkeletonPage } from "@/components/Skeleton";
 import LucideIcon from "@/components/LucideIcon";
 import { getApiErrorMessage } from "@/lib/utils";
 import { useGetMyGroups, useGetMyGroupsSummary } from "@/hooks/api/groups";
