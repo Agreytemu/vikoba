@@ -146,6 +146,18 @@ export const router = createBrowserRouter([
         ),
       },
 
+      // ---------- STANDALONE ONBOARDING WIZARD ----------
+      // Rendered outside the app shell so the member never sees the sidebar or
+      // navigation during phone verification → profile → KYC → plan.
+      {
+        path: "/onboarding",
+        element: (
+          <PwaGate>
+            <Onboarding />
+          </PwaGate>
+        ),
+      },
+
       // ---------- PUBLIC MARKETING ----------
       {
         path: "/landing",
@@ -157,11 +169,6 @@ export const router = createBrowserRouter([
         path: "/",
         element: <HomeEntry />,
         children: [
-          // onboarding is inside HomeEntry but outside verified gate
-          { path: "onboarding", element: <Onboarding /> },
-          { path: "profile", element: <Profile /> },
-          { path: "help", element: <Help /> },
-          { path: "settings", element: <Settings /> },
           // Home index: member home requires verification/onboarding for ME role
           {
             index: true,
@@ -171,6 +178,9 @@ export const router = createBrowserRouter([
               </RequireVerified>
             ),
           },
+          { path: "profile", element: <Profile /> },
+          { path: "help", element: <Help /> },
+          { path: "settings", element: <Settings /> },
           // Protected member routes — require verified + onboarded
           {
             element: <RequireVerified />,

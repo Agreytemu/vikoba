@@ -9,8 +9,9 @@ interface RequireVerifiedProps {
 
 /**
  * Gate for member-only routes.
- * - If member is not verified, redirect to /profile (verification workflow).
- * - If member is verified but not onboarded, redirect to /onboarding.
+ * - Members who have not finished the onboarding wizard (which includes phone
+ *   verification, KYC and plan selection) are sent to the standalone /onboarding
+ *   page. There is no dashboard or portal until onboarding is complete.
  * - Staff / non-ME users without a member profile are allowed through.
  * - While loading, show a spinner to avoid flicker.
  */
@@ -30,27 +31,14 @@ const RequireVerified: FC<RequireVerifiedProps> = ({ children }) => {
   // we should not block - allow through. Check error detail.
   const hasNoProfile = isError || !profile;
   if (hasNoProfile) {
-    // Inspect error to ensure it's "No member profile linked" case
-    // For staff users, profile is absent; allow.
-    // We treat any error as no-profile and allow, to avoid locking staff.
     if (children) return <>{children}</>;
     return <Outlet />;
   }
 
   // At this point profile exists and is a member (ME)
-  const isVerified = Boolean(profile.is_verified);
   const isOnboarded = Boolean(profile.is_onboarded);
 
-  if (!isVerified) {
-    return <Navigate to="/profile" state={{ from: location.pathname }} replace />;
-  }
-
-  if (isVerified && !isOnboarded) {
-    // Avoid redirect loop if already on onboarding page (should not happen because onboarding is outside gate)
-    if (location.pathname === "/onboarding") {
-      if (children) return <>{children}</>;
-      return <Outlet />;
-    }
+  if (!isOnboarded) {
     return <Navigate to="/onboarding" state={{ from: location.pathname }} replace />;
   }
 
