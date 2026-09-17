@@ -115,10 +115,28 @@ class RegisterSerializer(serializers.ModelSerializer):
             'confirm_password',
         )
 
+    def _strong_password(self, pw, email):
+        import re
+        if len(pw) < 10:
+            raise serializers.ValidationError({"password": "Password must be at least 10 characters."})
+        if not re.search(r"[A-Z]", pw):
+            raise serializers.ValidationError({"password": "Password must include at least one capital letter."})
+        if len(re.findall(r"[a-z]", pw)) < 3:
+            raise serializers.ValidationError({"password": "Password must include at least three lowercase letters."})
+        if not re.search(r"[0-9]", pw):
+            raise serializers.ValidationError({"password": "Password must include at least one number."})
+        if len(re.findall(r"[^A-Za-z0-9]", pw)) < 2:
+            raise serializers.ValidationError({"password": "Password must include at least two symbols (e.g. @ # $ % & *)."})
+        if email and pw.lower() == email.lower():
+            raise serializers.ValidationError({"password": "Password must not be the same as email."})
+        if email and email.split("@")[0].lower() in pw.lower():
+            raise serializers.ValidationError({"password": "Password must not contain your email name."})
+
     def validate(self, attrs):
         if attrs['password'] != attrs['confirm_password']:
             raise serializers.ValidationError(
                 {"password": "Password fields didn't match."})
+        self._strong_password(attrs['password'], attrs.get('email', ''))
         return attrs
 
     def validate_email(self, value):
@@ -129,6 +147,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         return email
 
     def validate_phone_number(self, value):
+        import re
+        if not re.match(r"^\+255[67]\d{8}$", value):
+            raise serializers.ValidationError(
+                "Tanzania numbers only. Use +255 followed by 9 digits starting with 6 or 7 (e.g. +255712345678).")
         from members.models import Member
         if Member.objects.filter(phone_number=value).exists():
             raise serializers.ValidationError(
