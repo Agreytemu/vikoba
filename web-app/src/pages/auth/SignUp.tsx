@@ -11,6 +11,24 @@ import CountryPhoneInput from "@/components/CountryPhoneInput";
 import { useRegister } from "@/hooks/api/auth";
 import { getApiErrorMessage } from "@/lib/utils";
 
+function generateStrongPassword(): string {
+  const caps = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lowers = "abcdefghijklmnopqrstuvwxyz";
+  const nums = "0123456789";
+  const syms = "@#$%&*";
+  const pick = (s: string) => s[Math.floor(Math.random() * s.length)];
+  let pw = "";
+  pw += pick(caps);
+  for (let i = 0; i < 4; i++) pw += pick(lowers);
+  pw += pick(nums);
+  pw += pick(syms) + pick(syms);
+  for (let i = 0; i < 3; i++) pw += pick(lowers + nums);
+  return pw
+    .split("")
+    .sort(() => Math.random() - 0.5)
+    .join("");
+}
+
 function isStrongPassword(pw: string, email: string): { ok: boolean; msg?: string } {
   if (pw.length < 10) return { ok: false, msg: "Password must be at least 10 characters." };
   if (!/[A-Z]/.test(pw)) return { ok: false, msg: "Include at least one capital letter (A-Z)." };
@@ -40,6 +58,13 @@ const SignUp: FC = () => {
     "Oops! Our server is having a tough moment or your connection is slow. Please refresh the page, check your internet, and try again.";
 
   const pwCheck = useMemo(() => (password ? isStrongPassword(password, email) : null), [password, email]);
+  const showPwGuide = password.length > 0;
+  const suggestPassword = () => {
+    const s = generateStrongPassword();
+    setPassword(s);
+    setPassword2(s);
+    toast.info(`Suggested password filled. You can copy it: ${s}`, { autoClose: 6000 });
+  };
 
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,26 +142,39 @@ const SignUp: FC = () => {
                 <CountryPhoneInput id="phoneNumber" label="Phone number" value={phoneNumber} onChange={setPhoneNumber} placeholder="712 345 678" />
                 <FormInput type="email" name="email" value={email} placeholder="you@example.com" label="Email" onChange={(e) => setEmail(e.target.value)} />
                 <div>
-                  <FormInput
-                    type="password"
-                    name="password"
-                    placeholder="Strong password"
-                    value={password}
-                    label="Password"
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                  <div className="mt-2 rounded-lg border border-[#F0EBE0] bg-[#FDFBF7] px-3 py-2 dark:border-slate-800 dark:bg-slate-800/50">
-                    <p className="text-[11px] font-medium text-[#3D3D3D] dark:text-slate-300">Password must have:</p>
-                    <ul className="mt-1 space-y-0.5 text-[11px] leading-4">
-                      <li className={password.length >= 10 ? "text-green-700" : "text-slate-500"}>• At least 10 characters</li>
-                      <li className={/[A-Z]/.test(password) ? "text-green-700" : "text-slate-500"}>• One capital letter</li>
-                      <li className={(password.match(/[a-z]/g) || []).length >= 3 ? "text-green-700" : "text-slate-500"}>• Three lowercase letters</li>
-                      <li className={/[0-9]/.test(password) ? "text-green-700" : "text-slate-500"}>• One number</li>
-                      <li className={(password.match(/[^A-Za-z0-9]/g) || []).length >= 2 ? "text-green-700" : "text-slate-500"}>• Two symbols (@ # $ % & *)</li>
-                      <li className={password && email && password.toLowerCase() === email.toLowerCase() ? "text-red-600" : "text-slate-500"}>• Not same as email</li>
-                    </ul>
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="flex-1">
+                      <FormInput
+                        type="password"
+                        name="password"
+                        placeholder="Strong password"
+                        value={password}
+                        label="Password"
+                        onChange={(e) => setPassword(e.target.value)}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={suggestPassword}
+                      className="mb-1 shrink-0 rounded-lg border border-[#E8E2D9] bg-white px-3 py-2 text-xs font-medium text-[#115036] hover:bg-[#FDFBF7]"
+                    >
+                      Suggest
+                    </button>
                   </div>
-                  {pwCheck && !pwCheck.ok && password.length > 0 && <p className="mt-1 text-xs text-amber-600">{pwCheck.msg}</p>}
+                  {showPwGuide && (
+                    <div className="mt-2 rounded-lg border border-[#F0EBE0] bg-[#FDFBF7] px-3 py-2 dark:border-slate-800 dark:bg-slate-800/50">
+                      <p className="text-[11px] font-medium text-[#3D3D3D] dark:text-slate-300">Password must have:</p>
+                      <ul className="mt-1 space-y-0.5 text-[11px] leading-4">
+                        <li className={password.length >= 10 ? "text-green-700" : "text-slate-500"}>• At least 10 characters</li>
+                        <li className={/[A-Z]/.test(password) ? "text-green-700" : "text-slate-500"}>• One capital letter</li>
+                        <li className={(password.match(/[a-z]/g) || []).length >= 3 ? "text-green-700" : "text-slate-500"}>• Three lowercase letters</li>
+                        <li className={/[0-9]/.test(password) ? "text-green-700" : "text-slate-500"}>• One number</li>
+                        <li className={(password.match(/[^A-Za-z0-9]/g) || []).length >= 2 ? "text-green-700" : "text-slate-500"}>• Two symbols (@ # $ % & *)</li>
+                        <li className={password && email && password.toLowerCase() === email.toLowerCase() ? "text-red-600" : "text-slate-500"}>• Not same as email</li>
+                      </ul>
+                    </div>
+                  )}
+                  {showPwGuide && pwCheck && !pwCheck.ok && password.length > 0 && <p className="mt-1 text-xs text-amber-600">{pwCheck.msg}</p>}
                 </div>
                 <FormInput
                   type="password"

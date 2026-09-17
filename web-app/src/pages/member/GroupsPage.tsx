@@ -9,7 +9,6 @@ import Modal from "@/components/ui/Modal";
 import { Button } from "@/components/ui/button";
 import FormInput from "@/components/FormInput";
 import VerifiedBadge from "@/components/VerifiedBadge";
-import PermissionSheet from "@/components/ui/PermissionSheet";
 import {
   useAcceptInvite,
   useCreateGroup,
@@ -20,7 +19,6 @@ import {
 import { useGetMyMemberProfile } from "@/hooks/api/memberSelf";
 import { useUserProfileInfo } from "@/hooks/useUserProfile";
 import { getApiErrorMessage } from "@/lib/utils";
-import type { GeoResult } from "@/lib/permissions";
 import { formatPlace, reverseGeocodePlace } from "@/lib/geo";
 
 const GroupsPage: FC = () => {
@@ -40,7 +38,6 @@ const GroupsPage: FC = () => {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [accepting, setAccepting] = useState<string | null>(null);
-  const [locationAskOpen, setLocationAskOpen] = useState(false);
   const [detectingLocation, setDetectingLocation] = useState(false);
   const [locationLabel, setLocationLabel] = useState("");
   const [form, setForm] = useState({
@@ -55,28 +52,34 @@ const GroupsPage: FC = () => {
   const createdCount = mySummary?.created_count ?? 0;
   const atGroupLimit = createdCount >= groupLimit;
 
-  const handleLocationResult = async (result: GeoResult) => {
-    setDetectingLocation(false);
-    if (!result.granted || !result.coords) return;
-    const { latitude, longitude } = result.coords;
-    const place = await reverseGeocodePlace(latitude, longitude);
-    setLocationLabel(formatPlace(place));
-    setForm((prev) => ({
-      ...prev,
-      area: prev.area.trim()
-        ? prev.area
-        : place.area || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
-      region: prev.region.trim() ? prev.region : place.region,
-      country: prev.country.trim() ? prev.country : place.country,
-    }));
-    if (place.country || place.region || place.area) {
-      toast.success("Real place name added to the group location.", { autoClose: 3000 });
-    }
-  };
-
   const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error("Location not supported on this device. Please type the area manually.", { autoClose: 3000 });
+      return;
+    }
     setDetectingLocation(true);
-    setLocationAskOpen(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        const place = await reverseGeocodePlace(latitude, longitude);
+        setLocationLabel(formatPlace(place));
+        setForm((prev) => ({
+          ...prev,
+          area: prev.area.trim() ? prev.area : place.area || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+          region: prev.region.trim() ? prev.region : place.region,
+          country: prev.country.trim() ? prev.country : place.country || "Tanzania",
+        }));
+        if (place.country || place.region || place.area) {
+          toast.success("Real place name added.", { autoClose: 2500 });
+        }
+        setDetectingLocation(false);
+      },
+      () => {
+        toast.error("Location was denied. Please type the area manually.", { autoClose: 3000 });
+        setDetectingLocation(false);
+      },
+      { enableHighAccuracy: false, timeout: 8000 },
+    );
   };
 
   const openCreate = () => {
@@ -341,16 +344,6 @@ const GroupsPage: FC = () => {
           </div>
         </form>
       </Modal>
-
-      <PermissionSheet
-        isOpen={locationAskOpen}
-        kind="location"
-        onClose={() => {
-          setLocationAskOpen(false);
-          setDetectingLocation(false);
-        }}
-        onLocationResult={handleLocationResult}
-      />
     </div>
   );
 };

@@ -2,7 +2,6 @@ import { FC, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Modal from "@/components/ui/Modal";
 import LucideIcon from "@/components/LucideIcon";
-import PermissionSheet from "@/components/ui/PermissionSheet";
 
 interface KycUploadButtonProps {
   uploaded?: boolean;
@@ -19,7 +18,6 @@ interface KycUploadButtonProps {
  */
 const KycUploadButton: FC<KycUploadButtonProps> = ({ uploaded, uploading, onUpload }) => {
   const [chooserOpen, setChooserOpen] = useState(false);
-  const [cameraAskOpen, setCameraAskOpen] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,7 +64,7 @@ const KycUploadButton: FC<KycUploadButtonProps> = ({ uploaded, uploading, onUplo
             type="button"
             onClick={() => {
               setChooserOpen(false);
-              setCameraAskOpen(true);
+              fire(cameraInputRef.current);
             }}
             className="flex w-full items-center gap-3 rounded-xl border border-slate-200 p-4 text-left transition hover:border-blue-300 hover:bg-blue-50/60 dark:border-slate-800 dark:hover:bg-blue-950/20"
           >
@@ -76,7 +74,7 @@ const KycUploadButton: FC<KycUploadButtonProps> = ({ uploaded, uploading, onUplo
             <span>
               <span className="block text-sm font-medium">Take a photo</span>
               <span className="block text-xs text-slate-500 dark:text-slate-400">
-                Uses your camera for a clear capture
+                Browser will ask for camera permission
               </span>
             </span>
           </button>
@@ -100,13 +98,6 @@ const KycUploadButton: FC<KycUploadButtonProps> = ({ uploaded, uploading, onUplo
           </button>
         </div>
       </Modal>
-
-      <PermissionSheet
-        isOpen={cameraAskOpen}
-        kind="camera"
-        onClose={() => setCameraAskOpen(false)}
-        onGranted={() => fire(cameraInputRef.current)}
-      />
 
       {/* real inputs — hidden, triggered programmatically */}
       <input

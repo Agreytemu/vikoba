@@ -112,14 +112,14 @@ const LandingPage: FC = () => {
       <section className="mx-auto max-w-6xl px-4 pb-8 pt-6 sm:px-5 sm:pt-10">
         <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-start lg:gap-10">
           <div className="pt-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#115036]">Vikoba · Chama · Savings group</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#115036]">VICOBA · Savings group · Community finance</p>
             <h1 className="mt-3 font-display text-[30px] font-[600] leading-[1.05] tracking-[-0.03em] text-[#1A1A1A] sm:text-[40px] lg:text-[44px]">
-              VICOBA yako,
+              Your VICOBA,
               <br />
-              sasa iko kidigitali.
+              now digital.
             </h1>
             <p className="mt-4 max-w-[36ch] text-[15px] leading-6 text-[#3D3D3D]">
-              Simamia michango, mikopo, marejesho na taarifa za kikundi — sehemu moja. Kila mtu anaona kilichotokea.
+              Manage contributions, loans, repayments and group records — all in one place. Everyone sees what happened.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <button onClick={openApp} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#115036] px-6 text-[14px] font-semibold text-white hover:bg-[#0e442d]">
@@ -522,7 +522,7 @@ const LandingPage: FC = () => {
           </div>
           <div className="mt-8 flex flex-col gap-2 border-t border-[#F0EBE0] pt-6 text-[12px] text-[#6B6B6B] sm:flex-row sm:items-center sm:justify-between">
             <span>© {new Date().getFullYear()} VICOBA KIDIGITALI</span>
-            <span className="text-[11px]">English · Kiswahili — structure ready for language switch</span>
+            <span className="text-[11px]">English · Tanzania</span>
           </div>
         </div>
       </footer>

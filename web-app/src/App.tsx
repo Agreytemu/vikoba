@@ -1,11 +1,9 @@
-import { FC, useEffect, useState } from "react";
+import { FC, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 // components
 import NavBar from "./components/NavBar";
 import SidebarLinks from "./components/SidebarLinks";
 import MobileBottomNav from "./components/MobileBottomNav";
-import PermissionSheet from "./components/ui/PermissionSheet";
-import { getPermissionState } from "@/lib/permissions";
 
 const STORAGE_ASKED_KEY = "vk_storage_persist_asked";
 
@@ -17,20 +15,19 @@ const STORAGE_ASKED_KEY = "vk_storage_persist_asked";
  *   navigation lives in the bottom tabs (plus a "More" sheet for the rest).
  */
 const App: FC = () => {
-  const [storageAskOpen, setStorageAskOpen] = useState(false);
-
-  // Ask once per device, shortly after entering the app, to persist the
-  // PWA's storage so cached files survive browser cleanup.
+  // One-time browser prompt to keep PWA storage persisted.
   useEffect(() => {
     if (localStorage.getItem(STORAGE_ASKED_KEY)) return;
-    getPermissionState("storage").then((state) => {
-      if (state === "granted") {
-        localStorage.setItem(STORAGE_ASKED_KEY, "1");
-        return;
-      }
-      const timer = setTimeout(() => setStorageAskOpen(true), 800);
-      return () => clearTimeout(timer);
-    });
+    const timer = setTimeout(async () => {
+      try {
+        if (navigator.storage?.persist) {
+          const ok = window.confirm("Keep data on this device so the app loads faster offline?");
+          if (ok) await navigator.storage.persist();
+        }
+      } catch {}
+      localStorage.setItem(STORAGE_ASKED_KEY, "1");
+    }, 900);
+    return () => clearTimeout(timer);
   }, []);
 
   return (
@@ -52,16 +49,6 @@ const App: FC = () => {
 
       {/* Phone-only, native-style bottom navigation */}
       <MobileBottomNav />
-
-      <PermissionSheet
-        isOpen={storageAskOpen}
-        kind="storage"
-        onClose={() => {
-          localStorage.setItem(STORAGE_ASKED_KEY, "1");
-          setStorageAskOpen(false);
-        }}
-        onGranted={() => localStorage.setItem(STORAGE_ASKED_KEY, "1")}
-      />
     </div>
   );
 };
