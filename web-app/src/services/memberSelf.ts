@@ -50,6 +50,16 @@ export interface MyMemberProfile {
   country: string;
   county: string;
   city: string;
+  permanent_address?: string | null;
+  street?: string | null;
+  region?: string | null;
+  citizenship_type?: string | null;
+  gender?: string | null;
+  occupation?: string | null;
+  preferred_currency?: string | null;
+  selected_plan?: number | string | null;
+  is_onboarded?: boolean;
+  onboarded_at?: string | null;
   status: string;
   phone_verified: boolean;
   is_verified: boolean;
@@ -88,11 +98,38 @@ export interface UpdateProfilePayload {
   city?: string;
 }
 
+export interface OnboardingPayload {
+  permanent_address: string;
+  street: string;
+  region: string;
+  citizenship_type: "BY_BIRTH" | "NATURALIZATION" | "MARRIAGE";
+  gender: "MALE" | "FEMALE";
+  date_of_birth: string;
+  occupation: string;
+  preferred_currency: "TZS" | "USD";
+  selected_plan?: number | string | null;
+}
+
+export interface MembershipPlan {
+  id: number | string;
+  name: string;
+  price: string | number;
+  currency: string;
+  interval?: string;
+  features?: string[];
+  is_active?: boolean;
+}
+
 export const memberSelfService = {
   me: () => api.get("/members/me") as Promise<MyMemberProfile>,
 
   updateMe: (data: UpdateProfilePayload) =>
     api.patch("/members/me", data) as Promise<MyMemberProfile>,
+
+  onboarding: (data: OnboardingPayload) =>
+    api.post("/members/me/onboarding/", data) as Promise<MyMemberProfile>,
+
+  getPlans: () => api.get("/accounts/plans/") as Promise<MembershipPlan[]>,
 
   verificationStatus: () =>
     api.get("/members/me/verification-status") as Promise<VerificationStatus>,

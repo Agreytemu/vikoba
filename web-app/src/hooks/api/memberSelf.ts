@@ -3,6 +3,7 @@ import {
   KycDocumentType,
   memberSelfService,
   NextOfKinPayload,
+  OnboardingPayload,
   UpdateProfilePayload,
 } from "@/services/memberSelf";
 
@@ -103,3 +104,22 @@ export const useSubmitForReview = () => {
     },
   });
 };
+
+export const useOnboarding = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: OnboardingPayload) => memberSelfService.onboarding(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["member", "me"] });
+      queryClient.invalidateQueries({ queryKey: ["member", "me", "verification"] });
+    },
+  });
+};
+
+export const useGetPlans = (enabled = true) =>
+  useQuery({
+    queryKey: ["accounts", "plans"],
+    queryFn: memberSelfService.getPlans,
+    enabled,
+    retry: false,
+  });

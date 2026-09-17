@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Check, Menu, X } from "lucide-react";
 import { SYSTEM_NAME, LOGO_URL } from "@/lib/system";
 import { detectInstalledApp } from "@/hooks/usePwaStatus";
+import Reveal from "@/components/landing/Reveal";
 
 const nav = [
   { href: "#how", label: "How it works" },
@@ -213,11 +214,13 @@ const LandingPage: FC = () => {
             ["Groups", "Same record for all"],
             ["Transactions", "Every movement traceable"],
             ["Access", "On your phone"],
-          ].map(([k, v]) => (
-            <div key={k} className="px-1">
-              <p className="text-[13px] font-semibold text-[#1A1A1A]">{k}</p>
-              <p className="text-[12px] leading-4 text-[#6B6B6B]">{v}</p>
-            </div>
+          ].map(([k, v], i) => (
+            <Reveal key={k} delay={i * 80}>
+              <div className="px-1">
+                <p className="text-[13px] font-semibold text-[#1A1A1A]">{k}</p>
+                <p className="text-[12px] leading-4 text-[#6B6B6B]">{v}</p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -235,12 +238,14 @@ const LandingPage: FC = () => {
             { n: "02", t: "Contribute regularly", d: "Weekly or monthly contributions. Each payment is recorded with a reference anyone can check." },
             { n: "03", t: "Manage and track loans", d: "Request, review, approve and disburse — all with a clear approval trail." },
             { n: "04", t: "See every transaction clearly", d: "Contributions, repayments, withdrawals. Member and group history stays readable." },
-          ].map((s) => (
-            <div key={s.n} className="rounded-2xl border border-[#E8E2D9] bg-white p-5">
-              <p className="text-[11px] font-semibold tracking-[0.1em] text-[#115036]">{s.n}</p>
-              <h3 className="mt-2 text-[15px] font-semibold leading-5">{s.t}</h3>
-              <p className="mt-2 text-[13px] leading-5 text-[#3D3D3D]">{s.d}</p>
-            </div>
+          ].map((s, i) => (
+            <Reveal key={s.n} delay={i * 80}>
+              <div className="rounded-2xl border border-[#E8E2D9] bg-white p-5">
+                <p className="text-[11px] font-semibold tracking-[0.1em] text-[#115036]">{s.n}</p>
+                <h3 className="mt-2 text-[15px] font-semibold leading-5">{s.t}</h3>
+                <p className="mt-2 text-[13px] leading-5 text-[#3D3D3D]">{s.d}</p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -260,47 +265,51 @@ const LandingPage: FC = () => {
                 "View transaction history",
                 "Receive group updates",
                 "See personal financial records",
-              ].map((t) => (
-                <li key={t} className="flex gap-2 text-[14px] leading-5 text-[#1A1A1A]">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EEF6F0] text-[#115036]">
-                    <Check size={12} />
-                  </span>
-                  {t}
-                </li>
+              ].map((t, i) => (
+                <Reveal key={t} delay={i * 80}>
+                  <li className="flex gap-2 text-[14px] leading-5 text-[#1A1A1A]">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EEF6F0] text-[#115036]">
+                      <Check size={12} />
+                    </span>
+                    {t}
+                  </li>
+                </Reveal>
               ))}
             </ul>
           </div>
-          <div className="rounded-2xl border border-[#E8E2D9] bg-[#FDFBF7] p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B6B6B]">Member view — example</p>
-            <div className="mt-3 overflow-hidden rounded-xl border border-[#E8E2D9] bg-white">
-              <div className="flex justify-between border-b border-[#F0EBE0] px-4 py-3">
-                <span className="text-[12px] font-medium text-[#6B6B6B]">Savings</span>
-                <span className="text-[13px] font-semibold">TZS 620,000</span>
+          <Reveal delay={120}>
+            <div className="rounded-2xl border border-[#E8E2D9] bg-[#FDFBF7] p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#6B6B6B]">Member view — example</p>
+              <div className="mt-3 overflow-hidden rounded-xl border border-[#E8E2D9] bg-white">
+                <div className="flex justify-between border-b border-[#F0EBE0] px-4 py-3">
+                  <span className="text-[12px] font-medium text-[#6B6B6B]">Savings</span>
+                  <span className="text-[13px] font-semibold">TZS 620,000</span>
+                </div>
+                <div className="divide-y divide-[#F0EBE0]">
+                  <div className="flex justify-between px-4 py-3 text-[13px]">
+                    <span className="text-[#6B6B6B]">Hisa owned</span>
+                    <span className="font-medium">18</span>
+                  </div>
+                  <div className="flex justify-between px-4 py-3 text-[13px]">
+                    <span className="text-[#6B6B6B]">Loan to repay</span>
+                    <span className="font-medium">TZS 225,000</span>
+                  </div>
+                  <div className="flex justify-between px-4 py-3 text-[13px]">
+                    <span className="text-[#6B6B6B]">Next due</span>
+                    <span className="font-medium">28 Dec · TZS 25,000</span>
+                  </div>
+                </div>
+                <div className="bg-[#FDFBF7] px-4 py-2.5 text-center text-[11px] text-[#6B6B6B]">History is kept per member, not just per group</div>
               </div>
-              <div className="divide-y divide-[#F0EBE0]">
-                <div className="flex justify-between px-4 py-3 text-[13px]">
-                  <span className="text-[#6B6B6B]">Hisa owned</span>
-                  <span className="font-medium">18</span>
-                </div>
-                <div className="flex justify-between px-4 py-3 text-[13px]">
-                  <span className="text-[#6B6B6B]">Loan to repay</span>
-                  <span className="font-medium">TZS 225,000</span>
-                </div>
-                <div className="flex justify-between px-4 py-3 text-[13px]">
-                  <span className="text-[#6B6B6B]">Next due</span>
-                  <span className="font-medium">28 Dec · TZS 25,000</span>
-                </div>
-              </div>
-              <div className="bg-[#FDFBF7] px-4 py-2.5 text-center text-[11px] text-[#6B6B6B]">History is kept per member, not just per group</div>
             </div>
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* FOR GROUPS */}
       <section id="groups" className="mx-auto max-w-6xl px-4 py-12 sm:px-5 sm:py-16">
         <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-          <div className="order-2 lg:order-1">
+          <Reveal delay={80} className="order-2 lg:order-1">
             <div className="overflow-hidden rounded-2xl border border-[#E8E2D9] bg-white">
               <div className="border-b border-[#F0EBE0] bg-[#FDFBF7] px-4 py-3">
                 <p className="text-[12px] font-semibold">Group ledger — example</p>
@@ -333,7 +342,7 @@ const LandingPage: FC = () => {
                 </div>
               </div>
             </div>
-          </div>
+          </Reveal>
           <div className="order-1 lg:order-2">
             <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#115036]">For groups</p>
             <h2 className="mt-2 font-display text-[24px] font-semibold leading-tight sm:text-[28px]">Run the group without losing track of the numbers.</h2>
@@ -348,11 +357,13 @@ const LandingPage: FC = () => {
                 "Group ledger & history",
                 "Financial reports",
                 "Transaction history",
-              ].map((t) => (
-                <li key={t} className="flex gap-2 text-[13px] leading-5">
-                  <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#115036]" />
-                  {t}
-                </li>
+              ].map((t, i) => (
+                <Reveal key={t} delay={i * 80}>
+                  <li className="flex gap-2 text-[13px] leading-5">
+                    <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-[#115036]" />
+                    {t}
+                  </li>
+                </Reveal>
               ))}
             </ul>
           </div>
@@ -366,18 +377,18 @@ const LandingPage: FC = () => {
             <h2 className="font-display text-[22px] font-semibold leading-tight sm:text-[28px]">Every contribution. Every repayment. Every withdrawal.</h2>
             <p className="mt-3 max-w-2xl text-[14px] leading-6 text-white/80">VICOBA depends on trust. Records are kept per member and per group — with status, references and history you can follow without asking for the book.</p>
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-xl bg-white/10 px-4 py-3">
-                <p className="text-[13px] font-semibold">Clear records</p>
-                <p className="text-[12px] text-white/70">Date, amount, reference</p>
-              </div>
-              <div className="rounded-xl bg-white/10 px-4 py-3">
-                <p className="text-[13px] font-semibold">Member & group view</p>
-                <p className="text-[12px] text-white/70">Same ledger, two lenses</p>
-              </div>
-              <div className="rounded-xl bg-white/10 px-4 py-3">
-                <p className="text-[13px] font-semibold">Receipts where applicable</p>
-                <p className="text-[12px] text-white/70">Traceable references</p>
-              </div>
+              {[
+                ["Clear records", "Date, amount, reference"],
+                ["Member & group view", "Same ledger, two lenses"],
+                ["Receipts where applicable", "Traceable references"],
+              ].map(([t, d], i) => (
+                <Reveal key={t} delay={i * 80}>
+                  <div className="rounded-xl bg-white/10 px-4 py-3">
+                    <p className="text-[13px] font-semibold">{t}</p>
+                    <p className="text-[12px] text-white/70">{d}</p>
+                  </div>
+                </Reveal>
+              ))}
             </div>
           </div>
         </div>
@@ -397,13 +408,13 @@ const LandingPage: FC = () => {
               ["Repayment", "Tracked weekly"],
               ["Completed", "Closed & recorded"],
             ].map(([t, s], i) => (
-              <div key={t} className="flex flex-1 items-start gap-2">
+              <Reveal key={t} delay={i * 80} className="flex flex-1 items-start gap-2">
                 <div className="min-w-0 flex-1 rounded-xl border border-[#E8E2D9] bg-white px-3 py-3 text-center">
                   <p className="text-[12px] font-semibold leading-tight">{t}</p>
                   <p className="text-[11px] text-[#6B6B6B]">{s}</p>
                 </div>
                 {i < 5 && <span className="mt-4 text-[#115036]">→</span>}
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -412,27 +423,31 @@ const LandingPage: FC = () => {
 
       {/* WITHDRAWALS */}
       <section className="mx-auto max-w-6xl px-4 pb-12 sm:px-5">
-        <div className="rounded-2xl border border-[#E8E2D9] bg-white p-5 sm:p-6">
-          <h3 className="text-[15px] font-semibold">Controlled withdrawals</h3>
-          <p className="mt-1 text-[13px] text-[#3D3D3D]">Withdrawals are requested, reviewed, approved, disbursed and recorded — not automatic.</p>
-          <div className="mt-4 flex flex-wrap gap-2 text-[12px]">
-            <span className="rounded-full border border-[#E8E2D9] bg-[#FDFBF7] px-3 py-1.5 font-medium">Requested</span>
-            <span className="py-1.5 text-[#6B6B6B]">→</span>
-            <span className="rounded-full border border-[#E8E2D9] bg-[#FDFBF7] px-3 py-1.5 font-medium">Review</span>
-            <span className="py-1.5 text-[#6B6B6B]">→</span>
-            <span className="rounded-full border border-[#E8E2D9] bg-[#FDFBF7] px-3 py-1.5 font-medium">Approved</span>
-            <span className="py-1.5 text-[#6B6B6B]">→</span>
-            <span className="rounded-full bg-[#115036] px-3 py-1.5 font-semibold text-white">Disbursed & recorded</span>
+        <Reveal delay={0}>
+          <div className="rounded-2xl border border-[#E8E2D9] bg-white p-5 sm:p-6">
+            <h3 className="text-[15px] font-semibold">Controlled withdrawals</h3>
+            <p className="mt-1 text-[13px] text-[#3D3D3D]">Withdrawals are requested, reviewed, approved, disbursed and recorded — not automatic.</p>
+            <div className="mt-4 flex flex-wrap gap-2 text-[12px]">
+              <span className="rounded-full border border-[#E8E2D9] bg-[#FDFBF7] px-3 py-1.5 font-medium">Requested</span>
+              <span className="py-1.5 text-[#6B6B6B]">→</span>
+              <span className="rounded-full border border-[#E8E2D9] bg-[#FDFBF7] px-3 py-1.5 font-medium">Review</span>
+              <span className="py-1.5 text-[#6B6B6B]">→</span>
+              <span className="rounded-full border border-[#E8E2D9] bg-[#FDFBF7] px-3 py-1.5 font-medium">Approved</span>
+              <span className="py-1.5 text-[#6B6B6B]">→</span>
+              <span className="rounded-full bg-[#115036] px-3 py-1.5 font-semibold text-white">Disbursed & recorded</span>
+            </div>
           </div>
-        </div>
+        </Reveal>
       </section>
 
       {/* PAYMENTS - only if true, keep modest */}
       <section className="mx-auto max-w-6xl px-4 pb-12 sm:px-5">
-        <div className="rounded-2xl bg-[#FDFBF7] p-5 sm:p-6">
-          <h3 className="text-[15px] font-semibold">Contribute and keep the record connected</h3>
-          <p className="mt-1 max-w-2xl text-[13px] leading-5 text-[#3D3D3D]">When you contribute, the payment record stays linked to your VICOBA account — so the group and the member see the same entry. If mobile-money is used by your group, the reference is kept with the transaction.</p>
-        </div>
+        <Reveal delay={80}>
+          <div className="rounded-2xl bg-[#FDFBF7] p-5 sm:p-6">
+            <h3 className="text-[15px] font-semibold">Contribute and keep the record connected</h3>
+            <p className="mt-1 max-w-2xl text-[13px] leading-5 text-[#3D3D3D]">When you contribute, the payment record stays linked to your VICOBA account — so the group and the member see the same entry. If mobile-money is used by your group, the reference is kept with the transaction.</p>
+          </div>
+        </Reveal>
       </section>
 
       {/* TRUST */}
@@ -446,24 +461,28 @@ const LandingPage: FC = () => {
             ["Transaction history", "Group and member ledgers stay aligned."],
             ["Account access", "Sign in to view your data."],
             ["Responsible data handling", "Financial data treated with care."],
-          ].map(([t, d]) => (
-            <div key={t} className="rounded-xl border border-[#E8E2D9] bg-white px-4 py-3">
-              <p className="text-[13px] font-semibold">{t}</p>
-              <p className="text-[12px] text-[#6B6B6B]">{d}</p>
-            </div>
+          ].map(([t, d], i) => (
+            <Reveal key={t} delay={i * 80}>
+              <div className="rounded-xl border border-[#E8E2D9] bg-white px-4 py-3">
+                <p className="text-[13px] font-semibold">{t}</p>
+                <p className="text-[12px] text-[#6B6B6B]">{d}</p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* ABOUT */}
       <section id="about" className="mx-auto max-w-3xl px-4 py-12 sm:px-5">
-        <div className="rounded-2xl border border-[#E8E2D9] bg-white p-6 sm:p-8">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#115036]">About</p>
-          <h2 className="mt-2 font-display text-[22px] font-semibold leading-tight">Community savings, kept where it belongs.</h2>
-          <p className="mt-3 text-[14px] leading-6 text-[#3D3D3D]">
-            For years VICOBA has run on notebooks and trust. We keep the trust and give it a place on every phone — so contributions, loans and records stay with the group, and everyone can follow them.
-          </p>
-        </div>
+        <Reveal delay={0}>
+          <div className="rounded-2xl border border-[#E8E2D9] bg-white p-6 sm:p-8">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#115036]">About</p>
+            <h2 className="mt-2 font-display text-[22px] font-semibold leading-tight">Community savings, kept where it belongs.</h2>
+            <p className="mt-3 text-[14px] leading-6 text-[#3D3D3D]">
+              For years VICOBA has run on notebooks and trust. We keep the trust and give it a place on every phone — so contributions, loans and records stay with the group, and everyone can follow them.
+            </p>
+          </div>
+        </Reveal>
       </section>
 
       {/* CTA */}

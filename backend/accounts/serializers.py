@@ -4,6 +4,7 @@ from rest_framework.validators import UniqueValidator
 
 from .models import (
     DepositRequest,
+    MembershipPlan,
     SavingsAccount,
     SavingsProduct,
     SavingsTransaction,
@@ -238,3 +239,10 @@ class DepositRequestDecisionSerializer(serializers.Serializer):
 class WithdrawalRequestDecisionSerializer(serializers.Serializer):
     decision = serializers.ChoiceField(choices=["approve", "reject"])
     decline_reason = serializers.CharField(required=False, allow_blank=True, default="")
+
+
+class MembershipPlanSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MembershipPlan
+        fields = ["id", "name", "price", "currency", "interval", "features", "is_active", "created_at"]
+        read_only_fields = ["id", "created_at"]

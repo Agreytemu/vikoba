@@ -10,6 +10,7 @@ from .views import (
     MemberMePhoneOTPRequestView,
     MemberMePhoneOTPVerifyView,
     MemberMeSubmitForReviewView,
+    MemberMeOnboardingView,
     MemberKYCVerifyView,
 )
 app_name = "members"
@@ -28,6 +29,7 @@ urlpatterns = [
     path('members/me/next-of-kin/', MemberMeNextOfKinView.as_view()),
     path('members/me/kyc-documents/', MemberMeKYCDocumentsView.as_view()),
     path('members/me/submit-for-review/', MemberMeSubmitForReviewView.as_view()),
+    path('members/me/onboarding/', MemberMeOnboardingView.as_view()),
     path('members/me/', MemberMeView.as_view()),
     path('members/', MemberViewSet.as_view({'get': 'list', 'post': 'create'})),
     path('members/<str:membership_number>/', MemberViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update' })),

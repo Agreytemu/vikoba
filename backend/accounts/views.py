@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from .models import (
     DepositRequest,
+    MembershipPlan,
     SavingsAccount,
     SavingsProduct,
     SavingsTransaction,
@@ -22,6 +23,7 @@ from .serializers import (
     DepositRequestDecisionSerializer,
     DepositRequestSerializer,
     MemberTransactionSerializer,
+    MembershipPlanSerializer,
     ProductSerializer,
     TransactionCreateSerializer,
     TransactionSerializer,
@@ -314,6 +316,21 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = SavingsProduct.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [HasProductManagementAccess]
+
+
+class MembershipPlanViewSet(viewsets.ModelViewSet):
+    queryset = MembershipPlan.objects.filter(is_active=True).order_by("price")
+    serializer_class = MembershipPlanSerializer
+
+    def get_permissions(self):
+        if self.action in ["list", "retrieve"]:
+            return [IsAuthenticated()]
+        # create/update/delete only staff
+        from users.permissions import HasProductManagementAccess as _Staff
+        return [_Staff()]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
 
 
 class TransactionViewSet(

@@ -279,3 +279,55 @@ class MemberKYCVerifyView(generics.GenericAPIView):
             member.refresh_verification()
             member.save(update_fields=["is_verified", "updated_at"])
         return Response(KYCDocumentSerializer(document).data)
+
+
+class MemberMeOnboardingView(generics.GenericAPIView):
+    """Save onboarding details after verification (address, citizenship, gender, DOB, job, currency, plan)."""
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        member = _member_for(request)
+        if member is None:
+            return Response({"detail": "No member profile is linked to this account."}, status=status.HTTP_400_BAD_REQUEST)
+        if not member.is_verified:
+            return Response({"detail": "Finish verification before onboarding."}, status=status.HTTP_403_FORBIDDEN)
+        data = request.data
+        # Validate age >=18
+        from datetime import date
+        dob = data.get("date_of_birth")
+        if dob:
+            try:
+                y, m, d = map(int, str(dob).split("-"))
+                dob_date = date(y, m, d)
+                today = date.today()
+                age = today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day))
+                if age < 18:
+                    return Response({"detail": "You must be at least 18 years old."}, status=status.HTTP_400_BAD_REQUEST)
+                member.date_of_birth = dob_date
+            except Exception:
+                return Response({"detail": "Invalid date_of_birth (use YYYY-MM-DD)."}, status=status.HTTP_400_BAD_REQUEST)
+        # Simple field updates
+        for field in ["permanent_address", "street", "region", "citizenship_type", "gender", "occupation", "preferred_currency"]:
+            if field in data and data[field] not in (None, ""):
+                setattr(member, field, data[field])
+        # Currency only TZS/USD
+        if member.preferred_currency not in ("TZS", "USD"):
+            member.preferred_currency = "TZS"
+        # Plan: admin-created, can be null (Free)
+        plan_id = data.get("selected_plan")
+        if plan_id:
+            from accounts.models import MembershipPlan
+            try:
+                plan = MembershipPlan.objects.get(pk=plan_id, is_active=True)
+                member.selected_plan = plan
+            except MembershipPlan.DoesNotExist:
+                return Response({"detail": "Selected plan not found."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            member.selected_plan = None
+        member.is_onboarded = True
+        from django.utils import timezone as _tz
+        member.onboarded_at = _tz.now()
+        if not member.country:
+            member.country = "Tanzania"
+        member.save()
+        return Response(MeMemberSerializer(member).data)

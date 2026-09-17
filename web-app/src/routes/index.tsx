@@ -49,6 +49,8 @@ import RequireModuleAccess from "@/components/RequireModuleAccess.tsx";
 import { AppModule } from "@/lib/access-control.ts";
 import PwaGate from "@/components/PwaGate.tsx";
 import MemberHome from "@/pages/member/MemberHome.tsx";
+import Onboarding from "@/pages/member/Onboarding.tsx";
+import RequireVerified from "@/components/RequireVerified.tsx";
 import { useUserProfileInfo } from "@/hooks/useUserProfile";
 
 const protectedModulePage = (module: AppModule, element: JSX.Element) => (
@@ -155,7 +157,33 @@ export const router = createBrowserRouter([
         path: "/",
         element: <HomeEntry />,
         children: [
-          { index: true, element: <HomeIndex /> },
+          // onboarding is inside HomeEntry but outside verified gate
+          { path: "onboarding", element: <Onboarding /> },
+          { path: "profile", element: <Profile /> },
+          { path: "help", element: <Help /> },
+          { path: "settings", element: <Settings /> },
+          // Home index: member home requires verification/onboarding for ME role
+          {
+            index: true,
+            element: (
+              <RequireVerified>
+                <HomeIndex />
+              </RequireVerified>
+            ),
+          },
+          // Protected member routes — require verified + onboarded
+          {
+            element: <RequireVerified />,
+            children: [
+              { path: "groups", element: <GroupsPage /> },
+              { path: "groups/:groupId", element: <GroupDetailPage /> },
+              { path: "loans-me", element: <MemberLoans /> },
+              { path: "wallet", element: <Wallet /> },
+              { path: "notifications", element: <Notifications /> },
+              { path: "community", element: <Community /> },
+              { path: "share-outs", element: <ShareOuts /> },
+            ],
+          },
           { path: "members", element: protectedModulePage("members", <Members />) },
           { path: "members/edit/:memberId?", element: protectedModulePage("members", <MembersEdit />) },
           { path: "members/view/:memberId?", element: protectedModulePage("members", <MembersView />) },
@@ -171,17 +199,7 @@ export const router = createBrowserRouter([
           { path: "loans/edit/:loanId?", element: protectedModulePage("loans", <LoansEdit />) },
           { path: "loans/view/:loanId", element: protectedModulePage("loans", <LoansView />) },
           { path: "expenses", element: protectedModulePage("expenses", <Expenses />) },
-          { path: "settings", element: <Settings /> },
-          { path: "help", element: <Help /> },
-          { path: "groups", element: <GroupsPage /> },
-          { path: "groups/:groupId", element: <GroupDetailPage /> },
-          { path: "loans-me", element: <MemberLoans /> },
-          { path: "wallet", element: <Wallet /> },
-          { path: "notifications", element: <Notifications /> },
-          { path: "community", element: <Community /> },
-          { path: "share-outs", element: <ShareOuts /> },
           { path: "users", element: protectedModulePage("users", <Users />) },
-          { path: "profile", element: <Profile /> },
           {path: "sms", element: protectedModulePage("communications", <BulkSMS />)},
           {path: "emails", element: protectedModulePage("communications", <BulkEmail />)},
           {path: "whatsapp", element: protectedModulePage("communications", <WhatsApp />)}

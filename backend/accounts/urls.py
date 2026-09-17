@@ -7,6 +7,7 @@ from .views import (
     MemberAccountTransactionsView,
     MemberDepositRequestView,
     MemberWithdrawalRequestView,
+    MembershipPlanViewSet,
     ProductViewSet,
     TransactionViewSet,
     MyAccountsView,
@@ -21,6 +22,10 @@ router.register(r'products', ProductViewSet, basename='products')
 router.register(r'transactions', TransactionViewSet, basename='transactions')
 
 urlpatterns = [
+    path("accounts/plans/", MembershipPlanViewSet.as_view({"get": "list", "post": "create"}), name="plans-list"),
+    path("accounts/plans/<int:pk>/", MembershipPlanViewSet.as_view({"get": "retrieve", "put": "update", "patch": "partial_update", "delete": "destroy"}), name="plans-detail"),
+    path("plans/", MembershipPlanViewSet.as_view({"get": "list", "post": "create"}), name="plans-alt-list"),
+    path("plans/<int:pk>/", MembershipPlanViewSet.as_view({"get": "retrieve", "put": "update", "patch": "partial_update", "delete": "destroy"}), name="plans-alt-detail"),
     path("accounts/me/", MyAccountsView.as_view(), name="my-accounts"),
     path("accounts/me/deposits/", MemberDepositRequestView.as_view(), name="my-deposits"),
     path("accounts/me/withdrawals/", MemberWithdrawalRequestView.as_view(), name="my-withdrawals"),
