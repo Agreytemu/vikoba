@@ -32,7 +32,31 @@ const VerifyEmail: FC = () => {
 
   useEffect(() => {
     if (searchParams.get("email")) setEmail(searchParams.get("email") || "");
-  }, [searchParams]);
+    const qCode = searchParams.get("code");
+    const qEmail = searchParams.get("email");
+    if (qCode && qEmail && qCode.trim().length >= 4) {
+      setCode(qCode.trim());
+      // Auto-verify the token link (15min expiry). On success it navigates to login.
+      confirmCode(
+        { email: qEmail, code: qCode.trim() },
+        {
+          onSuccess: (data) => {
+            if (data.already_verified) {
+              toast.success("Your email is already verified. Please log in.", { autoClose: 3000 });
+              navigate("/login");
+              return;
+            }
+            toast.success("Email verified — you can now log in!", { autoClose: 3000 });
+            navigate("/login");
+          },
+          onError: (error) =>
+            toast.error(getApiErrorMessage(error, "That link is invalid or expired (15 min). Please request a new code."), {
+              autoClose: 4000,
+            }),
+        },
+      );
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (cooldown <= 0) return;
