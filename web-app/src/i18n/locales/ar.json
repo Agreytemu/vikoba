@@ -16,6 +16,8 @@
     "sms": "رسائل SMS",
     "emails": "البريد الإلكتروني",
     "whatsapp": "واتساب",
+    "deposit": "إيداع",
+    "withdraw": "سحب",
     "logout": "تسجيل الخروج"
   },
   "common": {

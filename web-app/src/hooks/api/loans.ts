@@ -64,13 +64,14 @@ export const useLoanAction = () => {
     }) => {
       if (action === "submit") return loansService.submit(applicationNumber);
       if (action === "review") return loansService.review(applicationNumber);
-      if (action === "approve") return loansService.approve(applicationNumber, payload.approval_notes || "");
+      if (action === "approve") return loansService.approve(applicationNumber, payload.approval_notes || "", payload.approved_amount);
       if (action === "reject") return loansService.reject(applicationNumber, payload.rejection_reason || "");
       if (action === "repay") return loansService.repay(
         applicationNumber,
         payload.account_number || "",
         Number(payload.installment_number),
         payload.narration || "",
+        payload.amount,
       );
       return loansService.disburse(
         applicationNumber,

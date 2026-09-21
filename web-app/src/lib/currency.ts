@@ -1,18 +1,20 @@
 // Location-based currency detection & formatting.
 //
+// Tanzania-first product: the member's onboarding currency choice (TZS/USD)
+// wins whenever it is known; detection below only fills the gap for guests.
 // Detection order, from most accurate to most convenient:
 //   1. Browser geolocation (explicit permission prompt on the Dashboard)
 //      -> reverse-geocoded to a country via BigDataCloud (free, no API key)
 //   2. IP-based country lookup (no permission needed) as a fallback
 //   3. Browser locale/timezone region as a final offline fallback
-//   4. The system's primary currency (KES) when everything else fails
+//   4. The system's primary currency (TZS) when everything else fails
 //
 // The whole detection chain is defensive: it can never throw, so the app keeps
 // working even on offline/geoblocked/denied setups.
 
-export const DEFAULT_CURRENCY = "KES";
+export const DEFAULT_CURRENCY = "TZS";
 
-export type CurrencySource = "manual" | "geo" | "ip" | "locale" | "default";
+export type CurrencySource = "manual" | "geo" | "ip" | "locale" | "default" | "profile";
 
 export interface CurrencyState {
   currency: string;
@@ -144,19 +146,45 @@ async function reverseGeocode(
   if (!countryCode) return null;
   return {
     countryCode,
-    countryName: ((data?.countryName as string | undefined) || countryCode) as string,
+    countryName: cleanCountryName((data?.countryName as string | undefined) || countryCode),
   };
 }
 
-/** IP-based country lookup, no permission required. */
+/** IP-based country lookup, no permission required. Tries a no-key chain and
+ *  never throws — Returns null only when every provider fails. */
 async function countryFromIp(): Promise<{ countryCode: string; countryName: string } | null> {
-  const data = await fetchJson("https://api.bigdatacloud.net/data/client-ip");
-  const countryCode = data?.countryCode as string | undefined;
-  if (!countryCode) return null;
-  return {
-    countryCode,
-    countryName: ((data?.countryName as string | undefined) || countryCode) as string,
+  const candidates = [
+    "https://ipinfo.io/json",
+    "https://api.bigdatacloud.net/data/client-ip",
+  ];
+  for (const url of candidates) {
+    const data = await fetchJson(url);
+    const countryCode = (data?.country as string | undefined) ||
+      (data?.countryCode as string | undefined);
+    if (!countryCode) continue;
+    return {
+      countryCode,
+      countryName: cleanCountryName(
+        (data?.country_name as string | undefined) ||
+          (data?.region as string | undefined) ||
+          countryCode,
+      ),
+    };
+  }
+  return null;
+}
+
+/** Clean verbose country names up to short labels. */
+function cleanCountryName(name: string): string {
+  const map: Record<string, string> = {
+    "Tanzania, the United Republic of": "Tanzania",
+    "Tanzania, United Republic of": "Tanzania",
+    "United Republic of Tanzania": "Tanzania",
+    "Congo, The Democratic Republic of the": "DR Congo",
+    "Russian Federation": "Russia",
+    "Bolivia, Plurinational State of": "Bolivia",
   };
+  return map[name] ?? name;
 }
 
 function buildState(
@@ -164,7 +192,7 @@ function buildState(
   source: CurrencySource,
 ): CurrencyState {
   return {
-    currency: countryCurrencyMap[info.countryCode] ?? "KES",
+    currency: countryCurrencyMap[info.countryCode] ?? "TZS",
     countryCode: info.countryCode,
     countryName: info.countryName,
     source,

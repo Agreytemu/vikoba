@@ -41,7 +41,9 @@ const LandingPage: FC = () => {
     if (p?.prompt) {
       try {
         await p.prompt();
-      } catch {}
+      } catch (error) {
+        console.debug("Install prompt skipped.", error);
+      }
       deferred.current = null;
     }
     window.location.assign("/login");

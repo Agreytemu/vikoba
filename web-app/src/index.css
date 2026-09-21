@@ -75,6 +75,74 @@
   }
 }
 
+/* ---- Black animated verification checkmark (deposit/withdraw success) ---- */
+/* The user asked for the verification icon in black: the outer line traces a
+   circle, then the tick is drawn, ending in a full black verification badge
+   with a "Successfully" message. Stroke-dashoffset drives both strokes so the
+   shape literally draws itself on screen. */
+.verification-svg {
+  overflow: visible;
+}
+
+.verification-circle {
+  stroke: currentColor;
+  stroke-width: 1.6px;
+  stroke-linecap: round;
+  fill: none;
+  stroke-dasharray: 208;
+  stroke-dashoffset: 208;
+  animation: verification-draw-circle 0.9s ease-in-out forwards;
+}
+
+.verification-tick {
+  stroke: currentColor;
+  stroke-width: 3px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 40;
+  animation: verification-draw-tick 0.45s ease-out 0.98s forwards;
+}
+
+.verification-glow {
+  fill: currentColor;
+  opacity: 0;
+  animation: verification-glow-in 0.3s ease-out 1.45s forwards;
+}
+
+@keyframes verification-draw-circle {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes verification-draw-tick {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes verification-glow-in {
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .verification-circle,
+  .verification-tick {
+    animation-duration: 0s;
+    animation-delay: 0s;
+    stroke-dashoffset: 0;
+  }
+  .verification-glow {
+    animation-duration: 0s;
+    animation-delay: 0s;
+    opacity: 1;
+  }
+}
+
 /* ---- Landing page ---- */
 .reveal {
   opacity: 0;

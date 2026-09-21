@@ -104,11 +104,14 @@ class LoanApplicationDocumentSerializer(serializers.ModelSerializer):
 
 class LoanScheduleSerializer(serializers.ModelSerializer):
     paid_by_username = serializers.CharField(source="paid_by.username", read_only=True)
+    status = serializers.CharField(read_only=True)
+    outstanding_due = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
 
     class Meta:
         model = LoanSchedule
         fields = [
             "installment_number", "due_date", "principal_due", "interest_due", "total_due",
+            "partially_paid_amount", "outstanding_due", "status",
             "is_paid", "paid_at", "paid_by_username",
         ]
 
@@ -116,10 +119,12 @@ class LoanScheduleSerializer(serializers.ModelSerializer):
 class LoanAccountSerializer(serializers.ModelSerializer):
     member = serializers.CharField(source="member.membership_number", read_only=True)
     product = serializers.CharField(source="product.name", read_only=True)
-    interest_type = serializers.CharField(source="product.interest_type", read_only=True)
+    interest_type = serializers.CharField(read_only=True)
     schedule = LoanScheduleSerializer(many=True, read_only=True)
     total_repayable = serializers.SerializerMethodField()
     outstanding_balance = serializers.SerializerMethodField()
+    total_outstanding = serializers.SerializerMethodField()
+    next_installment = serializers.SerializerMethodField()
 
     class Meta:
         model = LoanAccount
@@ -135,10 +140,13 @@ class LoanAccountSerializer(serializers.ModelSerializer):
             "status",
             "outstanding_principal",
             "outstanding_interest",
+            "outstanding_penalty",
             "outstanding_balance",
+            "total_outstanding",
             "total_repayable",
             "interest_type",
             "schedule",
+            "next_installment",
             "created_at",
         ]
 
@@ -146,7 +154,21 @@ class LoanAccountSerializer(serializers.ModelSerializer):
         return obj.principal_amount + sum((item.interest_due for item in obj.schedule.all()), Decimal("0.00"))
 
     def get_outstanding_balance(self, obj):
-        return obj.outstanding_principal + obj.outstanding_interest
+        return obj.total_outstanding
+
+    def get_total_outstanding(self, obj):
+        return obj.total_outstanding
+
+    def get_next_installment(self, obj):
+        installment = obj.schedule.filter(is_paid=False).order_by("installment_number").first()
+        if installment is None:
+            return None
+        return {
+            "installment_number": installment.installment_number,
+            "due_date": installment.due_date,
+            "status": installment.status,
+            "amount_due": installment.outstanding_due,
+        }
 
 
 class LoanApplicationListSerializer(serializers.ModelSerializer):
@@ -271,6 +293,8 @@ class LoanApplicationDetailSerializer(serializers.ModelSerializer):
             "loan_type",
             "loan_type_name",
             "requested_amount",
+            "approved_amount",
+            "group",
             "purpose",
             "repayment_period_months",
             "employer",
@@ -286,12 +310,14 @@ class LoanApplicationDetailSerializer(serializers.ModelSerializer):
             "reviewed_by",
             "approved_by",
             "rejected_by",
+            "cancelled_by",
             "disbursed_by",
             "created_at",
             "submitted_at",
             "reviewed_at",
             "approved_at",
             "rejected_at",
+            "cancelled_at",
             "disbursed_at",
             "approval_notes",
             "rejection_reason",
@@ -311,12 +337,14 @@ class LoanApplicationDetailSerializer(serializers.ModelSerializer):
             "reviewed_by",
             "approved_by",
             "rejected_by",
+            "cancelled_by",
             "disbursed_by",
             "created_at",
             "submitted_at",
             "reviewed_at",
             "approved_at",
             "rejected_at",
+            "cancelled_at",
             "disbursed_at",
             "approval_notes",
             "rejection_reason",
@@ -398,11 +426,13 @@ class LoanApplicationDetailSerializer(serializers.ModelSerializer):
 class MemberLoanAccountSerializer(serializers.ModelSerializer):
     """A member's own loan account with its repayment schedule (self-service)."""
     product = serializers.CharField(source="product.name", read_only=True)
-    interest_type = serializers.CharField(source="product.interest_type", read_only=True)
+    interest_type = serializers.CharField(read_only=True)
     status_display = serializers.CharField(source="get_status_display", read_only=True)
     schedule = LoanScheduleSerializer(many=True, read_only=True)
     total_repayable = serializers.SerializerMethodField()
     outstanding_balance = serializers.SerializerMethodField()
+    total_outstanding = serializers.SerializerMethodField()
+    next_installment = serializers.SerializerMethodField()
 
     class Meta:
         model = LoanAccount
@@ -418,10 +448,13 @@ class MemberLoanAccountSerializer(serializers.ModelSerializer):
             "status_display",
             "outstanding_principal",
             "outstanding_interest",
+            "outstanding_penalty",
             "outstanding_balance",
+            "total_outstanding",
             "total_repayable",
             "interest_type",
             "schedule",
+            "next_installment",
             "created_at",
         ]
 
@@ -429,12 +462,33 @@ class MemberLoanAccountSerializer(serializers.ModelSerializer):
         return obj.principal_amount + sum((item.interest_due for item in obj.schedule.all()), Decimal("0.00"))
 
     def get_outstanding_balance(self, obj):
-        return obj.outstanding_principal + obj.outstanding_interest
+        return obj.total_outstanding
+
+    def get_total_outstanding(self, obj):
+        return obj.total_outstanding
+
+    def get_next_installment(self, obj):
+        installment = obj.schedule.filter(is_paid=False).order_by("installment_number").first()
+        if installment is None:
+            return None
+        return {
+            "installment_number": installment.installment_number,
+            "due_date": installment.due_date,
+            "status": installment.status,
+            "amount_due": installment.outstanding_due,
+        }
 
 
 class MemberRepaySerializer(serializers.Serializer):
     account_number = serializers.CharField(max_length=20)
     installment_number = serializers.IntegerField()
+    amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0.01"),
+    )
 
     def validate_installment_number(self, value):
         schedule = self.context["loan"].schedule.all()
@@ -452,6 +506,18 @@ class LoanSubmissionSerializer(serializers.Serializer):
 
 class LoanApprovalSerializer(serializers.Serializer):
     approval_notes = serializers.CharField(required=False, allow_blank=True, default="")
+    approved_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0.00"),
+        help_text="Final amount authorised; defaults to the requested amount.",
+    )
+
+
+class LoanCancelSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class LoanRejectionSerializer(serializers.Serializer):
@@ -483,6 +549,13 @@ class LoanRepaymentSerializer(serializers.Serializer):
     account_number = serializers.CharField(max_length=20)
     installment_number = serializers.IntegerField(min_value=1)
     narration = serializers.CharField(required=False, allow_blank=True, default="")
+    amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        allow_null=True,
+        min_value=Decimal("0.01"),
+    )
 
     def validate(self, attrs):
         application = self.context["application"]

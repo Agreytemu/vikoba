@@ -1,5 +1,9 @@
+import calendar
+from datetime import timedelta
+
 from django.db import models, transaction
 from django.conf import settings
+from django.utils import timezone
 
 
 class MembershipPlan(models.Model):
@@ -15,6 +19,83 @@ class MembershipPlan(models.Model):
 
     def __str__(self):
         return f"{self.name} — {self.price} {self.currency}/{self.interval}"
+
+
+def plan_period_end(start, interval):
+    """Next billing date for a subscription started at `start`.
+
+    Defaults to one calendar month ahead; weekly/yearly/daily intervals are
+    honoured too. The expiry is the NEXT billing date, i.e. one full period
+    after the start.
+    """
+    interval = (interval or "").strip().lower()
+    if interval in ("yearly", "year", "annual"):
+        return start + timedelta(days=365)
+    if interval in ("weekly", "week"):
+        return start + timedelta(days=7)
+    if interval in ("daily", "day"):
+        return start + timedelta(days=1)
+    # Default: advance by one calendar month (clamped to the month's length).
+    month = start.month - 1 + 1
+    year = start.year + month // 12
+    month = month % 12 + 1
+    day = min(start.day, calendar.monthrange(year, month)[1])
+    return start.replace(year=year, month=month, day=day)
+
+
+class MemberSubscription(models.Model):
+    """A member's plan subscription lifecycle.
+
+    Created PENDING at the checkout; it is only ever flipped to ACTIVE by the
+    verified Snippe ``payment.completed`` webhook — never by the initiation
+    request, so an unanswered or failed payment never activates a plan.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        ACTIVE = "ACTIVE", "Active"
+        EXPIRED = "EXPIRED", "Expired"
+        CANCELLED = "CANCELLED", "Cancelled"
+        FAILED = "FAILED", "Failed"
+
+    member = models.ForeignKey(
+        "members.Member",
+        on_delete=models.CASCADE,
+        related_name="subscriptions",
+    )
+    plan = models.ForeignKey(
+        MembershipPlan,
+        on_delete=models.PROTECT,
+        related_name="subscriptions",
+    )
+    payment = models.ForeignKey(
+        "payments.PaymentTransaction",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="subscriptions",
+    )
+    status = models.CharField(
+        max_length=12, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def activate(self):
+        """Mark the subscription live with start + next-billing dates."""
+        now = timezone.now()
+        self.started_at = now
+        self.expires_at = plan_period_end(now, self.plan.interval)
+        self.status = self.Status.ACTIVE
+        self.save(update_fields=["started_at", "expires_at", "status", "updated_at"])
+
+    def __str__(self):
+        return f"{self.member} · {self.plan.name} · {self.status}"
 
 
 def generate_account_number():
@@ -215,7 +296,11 @@ class WithdrawalRequest(models.Model):
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending"
         APPROVED = "APPROVED", "Approved"
+        SENT_TO_SNIPPE = "SENT_TO_SNIPPE", "Sent to Snippe"
+        SUCCESS = "SUCCESS", "Success"
+        FAILED = "FAILED", "Failed"
         REJECTED = "REJECTED", "Rejected"
+        CANCELLED = "CANCELLED", "Cancelled"
 
     member = models.ForeignKey(
         "members.Member",
@@ -231,7 +316,7 @@ class WithdrawalRequest(models.Model):
     narration = models.CharField(max_length=255, blank=True)
     reference = models.CharField(max_length=50, unique=True, editable=False)
     status = models.CharField(
-        max_length=10,
+        max_length=14,
         choices=Status.choices,
         default=Status.PENDING,
     )

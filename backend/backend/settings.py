@@ -90,6 +90,9 @@ INSTALLED_APPS = [
     "groups.apps.GroupsConfig",
     "community.apps.CommunityConfig",
     "whatsapp.apps.WhatsappConfig",
+    "payments.apps.PaymentsConfig",
+    "finance.apps.FinanceConfig",
+    "governance.apps.GovernanceConfig",
 
     # Third party apps
     'rest_framework',
@@ -282,6 +285,8 @@ EXTRA_CORS_ORIGINS = [o.strip() for o in _extra_cors.split(",") if o.strip()]
 
 if DEBUG:
     DEFAULT_CORS_ALLOWED_ORIGINS += [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
@@ -373,6 +378,42 @@ LOAN_MINIMUM_MONTHLY_CONTRIBUTION = os.getenv(
     "LOAN_MINIMUM_MONTHLY_CONTRIBUTION", "0.00"
 )
 
+# Overdue penalty defaults (monthly rate % and grace days). Groups can override
+# these through their GroupLoanPolicy.
+LOAN_PENALTY_RATE = os.getenv("LOAN_PENALTY_RATE", "0.00")
+LOAN_PENALTY_GRACE_DAYS = int(os.getenv("LOAN_PENALTY_GRACE_DAYS", "7"))
+
+# When set, a loan is only auto-classified DEFAULTED after this many days since
+# disbursement. Leave unset (None) to keep automatic default classification off.
+LOAN_DEFAULT_THRESHOLD_DAYS = os.getenv("LOAN_DEFAULT_THRESHOLD_DAYS")
+
+# ---------------------------------------------------------------------------
+# Withdrawal governance (Phase 4).
+#
+# Per-group overrides live in GroupWithdrawalPolicy (governance app); these
+# platform values are inherited when a group leaves a field unset.
+#   WITHDRAWAL_AUTO_LIMIT_TZS     - withdrawals up to this amount auto-approve
+#                                   and are paid without human review
+#                                   (None = unlimited auto-processing)
+#   WITHDRAWAL_MAX_LIMIT_TZS      - hard ceiling per withdrawal (None = none)
+#   WITHDRAWAL_MIN_AMOUNT_TZS     - minimum single withdrawal (None = none)
+#   WITHDRAWAL_MIN_RETAINED_RATIO - fraction of the balance retained after a
+#                                   withdrawal (0 = nothing mandated)
+# ---------------------------------------------------------------------------
+WITHDRAWAL_AUTO_LIMIT_TZS = os.getenv("WITHDRAWAL_AUTO_LIMIT_TZS")
+WITHDRAWAL_MAX_LIMIT_TZS = os.getenv("WITHDRAWAL_MAX_LIMIT_TZS")
+WITHDRAWAL_MIN_AMOUNT_TZS = os.getenv("WITHDRAWAL_MIN_AMOUNT_TZS")
+WITHDRAWAL_MIN_RETAINED_RATIO = os.getenv("WITHDRAWAL_MIN_RETAINED_RATIO", "0")
+WITHDRAWAL_POLICY_VERSION = "platform-default-v1"
+
+# Manual review: roles that may act on governance requests (in addition to the
+# committee role the group policy requests). Never includes MEMBER.
+GOVERNANCE_OFFICER_ROLES = ("AD", "MA", "OP", "FI", "AC")
+
+# How long a manual-review approval stays open before it expires and releases
+# the reserved funds.
+APPROVAL_EXPIRY_HOURS = int(os.getenv("APPROVAL_EXPIRY_HOURS", "72"))
+
 AUTH_USER_MODEL = "users.User"
 # No append slash at the end of URL
 # APPEND_SLASH = True
@@ -383,6 +424,24 @@ AUTH_USER_MODEL = "users.User"
 OTP_DEV_MODE = os.getenv("OTP_DEV_MODE", "true").lower() in (
     "1", "true", "yes", "on",
 )
+
+# Snippe mobile-money gateway (sandbox for local/demo; live creds on Render).
+# The API key and webhook secret are secrets — they must never be committed to
+# git and are only read from the environment / .env.
+SNIPPE_BASE_URL = os.getenv("SNIPPE_BASE_URL", "https://api.snippe.sh").rstrip("/")
+SNIPPE_API_KEY = os.getenv("SNIPPE_API_KEY", "")
+SNIPPE_WEBHOOK_SECRET = os.getenv("SNIPPE_WEBHOOK_SECRET", "")
+SNIPPE_WEBHOOK_URL = os.getenv("SNIPPE_WEBHOOK_URL", "").rstrip("/")
+SNIPPE_ENVIRONMENT = os.getenv("SNIPPE_ENVIRONMENT", "sandbox")
+# When enabled the provider returns synthetic responses and never dials out; it
+# mirrors OTP_DEV_MODE so the demo and tests run with no network/Snippe account.
+SNIPPE_DEV_MODE = os.getenv("SNIPPE_DEV_MODE", "true").lower() in (
+    "1", "true", "yes", "on",
+)
+SNIPPE_TIMEOUT = int(os.getenv("SNIPPE_TIMEOUT", "10"))
+
+if not SNIPPE_DEV_MODE and not SNIPPE_API_KEY:
+    raise ImproperlyConfigured("SNIPPE_API_KEY must be set when SNIPPE_DEV_MODE is off.")
 
 # When no real SMTP credentials are configured the console mail backend is used;
 # returning the code to the caller mirrors phone OTP dev mode for local dev/demo.

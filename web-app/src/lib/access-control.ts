@@ -5,7 +5,8 @@ export type AppModule =
   | "loans"
   | "users"
   | "expenses"
-  | "communications";
+  | "communications"
+  | "governance";
 
 type UserRole = "AD" | "MA" | "OP" | "FI" | "LO" | "AC" | "ME";
 
@@ -17,6 +18,7 @@ const moduleAccess: Record<AppModule, UserRole[]> = {
   users: ["AD", "MA"],
   expenses: ["AD", "MA", "OP", "FI"],
   communications: ["AD", "MA", "OP", "FI"],
+  governance: ["AD", "MA", "OP", "FI", "AC"],
 };
 
 export const hasModuleAccess = (role: string | undefined, module: AppModule) =>

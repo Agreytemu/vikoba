@@ -3,6 +3,7 @@ import {
   AddContributionPayload,
   BuySharesPayload,
   CreateGroupPayload,
+  GroupListParams,
   groupsService,
 } from "@/services/groups";
 
@@ -70,6 +71,48 @@ export const useGetGroup = (groupId?: number | string) =>
     enabled: groupId !== undefined && groupId !== null && groupId !== "",
   });
 
+export const useGetGroupOverview = (groupId?: number | string) =>
+  useQuery({
+    queryKey: [...GROUP_KEYS, groupId, "overview"],
+    queryFn: () => groupsService.overview(groupId as number | string),
+    enabled: groupId !== undefined && groupId !== null && groupId !== "",
+  });
+
+export const useGetGroupMembers = (groupId?: number | string, params?: GroupListParams) =>
+  useQuery({
+    queryKey: [...GROUP_KEYS, groupId, "members", params],
+    queryFn: () => groupsService.members(groupId as number | string, params),
+    enabled: groupId !== undefined && groupId !== null && groupId !== "",
+  });
+
+export const useGetGroupLoans = (groupId?: number | string, params?: GroupListParams) =>
+  useQuery({
+    queryKey: [...GROUP_KEYS, groupId, "loans", params],
+    queryFn: () => groupsService.loans(groupId as number | string, params),
+    enabled: groupId !== undefined && groupId !== null && groupId !== "",
+  });
+
+export const useGetGroupRepayments = (groupId?: number | string, params?: GroupListParams) =>
+  useQuery({
+    queryKey: [...GROUP_KEYS, groupId, "repayments", params],
+    queryFn: () => groupsService.repayments(groupId as number | string, params),
+    enabled: groupId !== undefined && groupId !== null && groupId !== "",
+  });
+
+export const useGetGroupLedger = (groupId?: number | string, params?: GroupListParams) =>
+  useQuery({
+    queryKey: [...GROUP_KEYS, groupId, "ledger", params],
+    queryFn: () => groupsService.ledger(groupId as number | string, params),
+    enabled: groupId !== undefined && groupId !== null && groupId !== "",
+  });
+
+export const useGetGroupActivity = (groupId?: number | string, params?: GroupListParams) =>
+  useQuery({
+    queryKey: [...GROUP_KEYS, groupId, "activity", params],
+    queryFn: () => groupsService.activity(groupId as number | string, params),
+    enabled: groupId !== undefined && groupId !== null && groupId !== "",
+  });
+
 export const useGetPendingInvitations = (enabled = true) =>
   useQuery({
     queryKey: [...GROUP_KEYS, "invitations"],
@@ -126,10 +169,10 @@ export const useBuyShares = (groupId?: number | string) => {
   });
 };
 
-export const useGetContributions = (groupId?: number | string) =>
+export const useGetContributions = (groupId?: number | string, params?: GroupListParams) =>
   useQuery({
-    queryKey: [...GROUP_KEYS, groupId, "contributions"],
-    queryFn: () => groupsService.listContributions(groupId as number | string),
+    queryKey: [...GROUP_KEYS, groupId, "contributions", params],
+    queryFn: () => groupsService.listContributionsFiltered(groupId as number | string, params),
     enabled: groupId !== undefined && groupId !== null && groupId !== "",
   });
 

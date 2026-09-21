@@ -12,6 +12,7 @@ type Props = {
   accept?: string;
   inputMode?: "numeric" | "tel" | "email" | "text" | React.HTMLAttributes<HTMLInputElement>["inputMode"];
   autoComplete?: string;
+  autoFocus?: boolean;
   ref?: React.RefObject<HTMLInputElement>;
   onChange?: (event: ChangeEvent<HTMLInputElement>) => void;
 };
@@ -27,6 +28,7 @@ const FormInput: React.FC<Props> = ({
   disabled,
   inputMode,
   autoComplete,
+  autoFocus,
   onChange,
   ref,
 }) => {
@@ -56,6 +58,7 @@ const FormInput: React.FC<Props> = ({
           accept={accept}
           inputMode={inputMode}
           autoComplete={autoComplete || "true"}
+          autoFocus={autoFocus}
           onChange={onChange}
           id={name}
           disabled={disabled}

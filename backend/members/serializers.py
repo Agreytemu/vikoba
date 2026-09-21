@@ -4,6 +4,7 @@ from rest_framework.validators import UniqueValidator
 
 from .models import Member, NextOfKin, EmploymentDetail, KYCDocument
 from .validators import validate_uploaded_file
+from accounts.serializers import MembershipPlanSerializer
 
 
 class NextOfKinSerializer(serializers.ModelSerializer):
@@ -61,6 +62,9 @@ class MeMemberSerializer(serializers.ModelSerializer):
     employment = EmploymentDetailSerializer(read_only=True)
     verification = serializers.SerializerMethodField()
     email = serializers.EmailField(source="user.email", read_only=True)
+    # Full plan object (id, name, price, currency, interval) so the checkout UI
+    # never needs to hardcode a plan. Written via the onboarding endpoint only.
+    selected_plan = MembershipPlanSerializer(read_only=True)
 
     class Meta:
         model = Member
@@ -71,6 +75,7 @@ class MeMemberSerializer(serializers.ModelSerializer):
             "middle_name",
             "last_name",
             "phone_number",
+            "phone_network",
             "email",
             "date_of_birth",
             "national_id",
@@ -99,6 +104,7 @@ class MeMemberSerializer(serializers.ModelSerializer):
             "membership_number",
             "status",
             "phone_verified",
+            "phone_network",
             "is_verified",
             "verification",
             "next_of_kin",
@@ -116,11 +122,14 @@ class MeMemberSerializer(serializers.ModelSerializer):
         instance = super().update(instance, validated_data)
         if phone_changed:
             # A new phone number must be verified again before the member is
-            # considered verified.
+            # considered verified. Its network is re-detected on verification.
             instance.phone_verified = False
+            instance.phone_network = instance.PhoneNetwork.UNKNOWN
             instance.is_verified = False
             instance.refresh_verification()
-            instance.save(update_fields=["phone_verified", "is_verified", "updated_at"])
+            instance.save(
+                update_fields=["phone_verified", "phone_network", "is_verified", "updated_at"]
+            )
         return instance
 
 

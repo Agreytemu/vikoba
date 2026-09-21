@@ -16,6 +16,8 @@
     "sms": "एसएमएस",
     "emails": "ईमेल",
     "whatsapp": "व्हाट्सएप",
+    "deposit": "जमा",
+    "withdraw": "निकासी",
     "logout": "लॉगआउट"
   },
   "common": {

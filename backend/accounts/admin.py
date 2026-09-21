@@ -5,9 +5,45 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from decimal import Decimal
 
-from .models import SavingsProduct, SavingsAccount, SavingsTransaction
+from .models import (
+    MembershipPlan,
+    MemberSubscription,
+    SavingsProduct,
+    SavingsAccount,
+    SavingsTransaction,
+)
 from .forms import SavingsTransactionForm
 from .services import post_savings_transaction
+
+
+@admin.register(MembershipPlan)
+class MembershipPlanAdmin(admin.ModelAdmin):
+    """Subscription plans are managed here — never hardcoded in the app."""
+
+    list_display = ("name", "price", "currency", "interval", "is_active", "created_at")
+    list_editable = ("is_active",)
+    list_filter = ("is_active", "currency", "interval")
+    search_fields = ("name",)
+
+
+@admin.register(MemberSubscription)
+class MemberSubscriptionAdmin(admin.ModelAdmin):
+    list_display = ("member", "plan", "status", "started_at", "expires_at", "created_at")
+    list_filter = ("status", "plan")
+    search_fields = (
+        "member__membership_number",
+        "member__first_name",
+        "member__last_name",
+        "plan__name",
+    )
+    readonly_fields = ("member", "plan", "payment", "status", "started_at", "expires_at", "created_at", "updated_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        # Subscriptions are lifecycle-managed by payments, not hand-edited.
+        return False
 
 @admin.register(SavingsProduct)
 class SavingsProductAdmin(admin.ModelAdmin):

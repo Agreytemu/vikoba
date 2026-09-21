@@ -19,6 +19,8 @@ import InviteAccept from "@/pages/groups/InviteAccept.tsx";
 import MemberLoans from "@/pages/member/MemberLoans";
 import GroupDetailPage from "@/pages/member/GroupDetailPage.tsx";
 import Wallet from "@/pages/member/Wallet";
+import Deposit from "@/pages/member/Deposit";
+import Withdraw from "@/pages/member/Withdraw";
 import Notifications from "@/pages/member/Notifications";
 import Community from "@/pages/member/Community";
 import ShareOuts from "@/pages/member/ShareOuts";
@@ -45,11 +47,14 @@ import { BulkSMS } from "@/pages/sms/BulkSMS.tsx";
 import { BulkEmail } from "@/pages/emails/BulkEmail.tsx";
 import { WhatsApp } from "@/pages/whatsapp/WhatsApp.tsx";
 import { Expenses } from "@/pages/expenses/index.tsx";
+import Approvals from "@/pages/governance/Approvals.tsx";
 import RequireModuleAccess from "@/components/RequireModuleAccess.tsx";
 import { AppModule } from "@/lib/access-control.ts";
 import PwaGate from "@/components/PwaGate.tsx";
 import MemberHome from "@/pages/member/MemberHome.tsx";
 import Onboarding from "@/pages/member/Onboarding.tsx";
+import NewGroupPage from "@/pages/member/NewGroupPage.tsx";
+import PlanCheckoutPage from "@/pages/member/PlanCheckoutPage.tsx";
 import RequireVerified from "@/components/RequireVerified.tsx";
 import { useUserProfileInfo } from "@/hooks/useUserProfile";
 
@@ -168,6 +173,18 @@ export const router = createBrowserRouter([
         ),
       },
 
+      // ---------- STANDALONE GROUP CREATION WIZARD (no sidebar) ----------
+      // Members are walked through the required details step by step, away from
+      // the app shell so nothing distracts them while setting up a group.
+      {
+        path: "/create-group",
+        element: (
+          <PwaGate>
+            <NewGroupPage />
+          </PwaGate>
+        ),
+      },
+
       // ---------- PUBLIC MARKETING ----------
       {
         path: "/landing",
@@ -190,6 +207,9 @@ export const router = createBrowserRouter([
           },
           { path: "profile", element: <Profile /> },
           { path: "settings", element: <Settings /> },
+          // Plan checkout is deliberately OUTSIDE RequireVerified so members can
+          // subscribe (and pay) even before phone/KYC verification is complete.
+          { path: "plan-checkout", element: <PlanCheckoutPage /> },
           // Protected member routes — require verified + onboarded
           {
             element: <RequireVerified />,
@@ -198,6 +218,8 @@ export const router = createBrowserRouter([
               { path: "groups/:groupId", element: <GroupDetailPage /> },
               { path: "loans-me", element: <MemberLoans /> },
               { path: "wallet", element: <Wallet /> },
+              { path: "deposit", element: <Deposit /> },
+              { path: "withdraw", element: <Withdraw /> },
               { path: "notifications", element: <Notifications /> },
               { path: "community", element: <Community /> },
               { path: "share-outs", element: <ShareOuts /> },
@@ -218,6 +240,7 @@ export const router = createBrowserRouter([
           { path: "loans/edit/:loanId?", element: protectedModulePage("loans", <LoansEdit />) },
           { path: "loans/view/:loanId", element: protectedModulePage("loans", <LoansView />) },
           { path: "expenses", element: protectedModulePage("expenses", <Expenses />) },
+          { path: "approvals", element: <Approvals /> },
           { path: "users", element: protectedModulePage("users", <Users />) },
           {path: "sms", element: protectedModulePage("communications", <BulkSMS />)},
           {path: "emails", element: protectedModulePage("communications", <BulkEmail />)},

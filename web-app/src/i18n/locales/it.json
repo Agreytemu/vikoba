@@ -16,6 +16,8 @@
     "sms": "SMS",
     "emails": "E-mail",
     "whatsapp": "WhatsApp",
+    "deposit": "Deposito",
+    "withdraw": "Prelievo",
     "logout": "Esci"
   },
   "common": {

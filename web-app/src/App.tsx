@@ -24,7 +24,9 @@ const App: FC = () => {
           const ok = window.confirm("Keep data on this device so the app loads faster offline?");
           if (ok) await navigator.storage.persist();
         }
-      } catch {}
+      } catch (error) {
+        console.debug("IndexedDB persist request skipped.", error);
+      }
       localStorage.setItem(STORAGE_ASKED_KEY, "1");
     }, 900);
     return () => clearTimeout(timer);

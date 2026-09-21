@@ -6,6 +6,7 @@ export type LoanStatus =
   | "under_review"
   | "approved"
   | "rejected"
+  | "cancelled"
   | "disbursed";
 
 export interface LoanType {
@@ -75,6 +76,8 @@ export interface EligibilitySummary {
 export interface LoanApplication extends LoanApplicationListItem {
   purpose: string;
   repayment_period_months: number;
+  approved_amount?: number | null;
+  group?: number | null;
   employer: string;
   payroll_number: string;
   gross_salary: number | null;
@@ -87,11 +90,13 @@ export interface LoanApplication extends LoanApplicationListItem {
   reviewed_by: number | null;
   approved_by: number | null;
   rejected_by: number | null;
+  cancelled_by?: number | null;
   disbursed_by: number | null;
   submitted_at: string | null;
   reviewed_at: string | null;
   approved_at: string | null;
   rejected_at: string | null;
+  cancelled_at?: string | null;
   disbursed_at: string | null;
   approval_notes: string;
   rejection_reason: string;
@@ -118,6 +123,9 @@ export interface LoanInstallment {
   principal_due: number;
   interest_due: number;
   total_due: number;
+  partially_paid_amount: number;
+  outstanding_due: number;
+  status: string;
   is_paid: boolean;
   paid_at: string | null;
   paid_by_username: string | null;
@@ -132,8 +140,16 @@ export interface LoanAccount {
   status: string;
   outstanding_principal: number;
   outstanding_interest: number;
+  outstanding_penalty: number;
   outstanding_balance: number;
   total_repayable: number;
+  total_outstanding: number;
+  next_installment?: {
+    installment_number: number;
+    due_date: string;
+    status: string;
+    amount_due: number;
+  } | null;
   schedule: LoanInstallment[];
 }
 
@@ -189,14 +205,14 @@ export const loansService = {
     api.post(`/loans/${applicationNumber}/submit/`, {}) as Promise<LoanApplication>,
   review: (applicationNumber: string) =>
     api.post(`/loans/${applicationNumber}/review/`, {}) as Promise<LoanApplication>,
-  approve: (applicationNumber: string, approval_notes: string) =>
-    api.post(`/loans/${applicationNumber}/approve/`, { approval_notes }) as Promise<LoanApplication>,
+  approve: (applicationNumber: string, approval_notes: string, approved_amount?: string) =>
+    api.post(`/loans/${applicationNumber}/approve/`, approved_amount ? { approval_notes, approved_amount } : { approval_notes }) as Promise<LoanApplication>,
   reject: (applicationNumber: string, rejection_reason: string) =>
     api.post(`/loans/${applicationNumber}/reject/`, { rejection_reason }) as Promise<LoanApplication>,
   disburse: (applicationNumber: string, account_number: string, disbursement_notes: string) =>
     api.post(`/loans/${applicationNumber}/disburse/`, { account_number, disbursement_notes }) as Promise<LoanApplication>,
-  repay: (applicationNumber: string, account_number: string, installment_number: number, narration: string) =>
-    api.post(`/loans/${applicationNumber}/repay/`, { account_number, installment_number, narration }) as Promise<LoanApplication>,
+  repay: (applicationNumber: string, account_number: string, installment_number: number, narration: string, amount?: string) =>
+    api.post(`/loans/${applicationNumber}/repay/`, { account_number, installment_number, narration, amount }) as Promise<LoanApplication>,
   addGuarantor: (applicationNumber: string, member: string, guaranteed_amount: number) =>
     api.post(`/loans/${applicationNumber}/guarantors/`, { member, guaranteed_amount }) as Promise<Guarantor>,
   removeGuarantor: (applicationNumber: string, guarantorId: number) =>

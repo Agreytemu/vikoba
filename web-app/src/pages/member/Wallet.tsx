@@ -1,4 +1,5 @@
 import { FC, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import Button from "@/components/Button";
@@ -25,12 +26,17 @@ import { getApiErrorMessage } from "@/lib/utils";
 const REQUEST_STATUS_STYLES: Record<string, string> = {
   PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-transparent",
   APPROVED: "bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300 border-transparent",
+  SENT_TO_SNIPPE: "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border-transparent",
+  SUCCESS: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-transparent",
+  FAILED: "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-transparent",
   DECLINED: "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-transparent",
+  CANCELLED: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border-transparent",
 };
 
 const Wallet: FC = () => {
   const { profile } = useUserProfileInfo();
   const { formatMoney } = useCurrency();
+  const navigate = useNavigate();
   const isMember = profile?.role === "ME";
   const { data: me } = useGetMyMemberProfile(isMember);
   const isVerified = isMember ? Boolean(me?.is_verified) : false;
@@ -71,8 +77,8 @@ const Wallet: FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button text="Deposit" onClick={() => setDepositOpen(true)} />
-          <Button text="Withdraw" variant="secondary" onClick={showWithdraw} />
+          <Button text="Deposit" onClick={() => navigate("/deposit")} />
+          <Button text="Withdraw" variant="secondary" onClick={() => navigate("/withdraw")} />
         </div>
       </div>
 
@@ -99,8 +105,8 @@ const Wallet: FC = () => {
         <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-700/50 dark:bg-amber-950/30 dark:text-amber-200">
           <LucideIcon name="Info" size={18} className="mt-0.5 shrink-0" />
           <p>
-            You can deposit and check your savings today. Withdrawals require a
-            verified account — finish your verification and staff approval to unlock them.
+            You can deposit and check your savings today. Withdrawals require a verified
+            account — finish your verification to unlock them (approval is automatic).
           </p>
         </div>
       )}
@@ -167,7 +173,16 @@ const Wallet: FC = () => {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-3">
-          <h2 className="font-display text-lg font-semibold">Deposit requests</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-lg font-semibold">Deposit requests</h2>
+            <button
+              type="button"
+              onClick={() => setDepositOpen(true)}
+              className="text-xs font-medium text-[#115036] hover:underline dark:text-emerald-300"
+            >
+              Manual request
+            </button>
+          </div>
           <RequestList
             items={(deposits ?? []).map((d) => ({
               id: `d-${d.id}`,
@@ -182,7 +197,16 @@ const Wallet: FC = () => {
           />
         </div>
         <div className="space-y-3">
-          <h2 className="font-display text-lg font-semibold">Withdrawal requests</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-lg font-semibold">Withdrawal requests</h2>
+            <button
+              type="button"
+              onClick={showWithdraw}
+              className="text-xs font-medium text-[#115036] hover:underline dark:text-emerald-300"
+            >
+              Manual request
+            </button>
+          </div>
           <RequestList
             items={(withdrawals ?? []).map((w) => ({
               id: `w-${w.id}`,

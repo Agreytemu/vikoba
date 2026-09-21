@@ -271,7 +271,7 @@ const WhatsAppConnectModal: FC<Props> = ({
                     <ol className="mx-auto max-w-sm space-y-1 text-left text-xs text-slate-500 dark:text-slate-400">
                       <li>
                         <span className="font-medium text-slate-700 dark:text-slate-200">1.</span> Enter the
-                        WhatsApp number of this phone (with country code, e.g. +2547…).
+                        WhatsApp number of this phone (with country code, e.g. +2557…).
                       </li>
                       <li>
                         <span className="font-medium text-slate-700 dark:text-slate-200">2.</span> On that phone
@@ -291,7 +291,7 @@ const WhatsAppConnectModal: FC<Props> = ({
                       <FormInput
                         type="tel"
                         label="WhatsApp number"
-                        placeholder="+254712345678"
+                        placeholder="+255712345678"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         className="flex-1"

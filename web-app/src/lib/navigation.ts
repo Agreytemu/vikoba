@@ -8,6 +8,7 @@ export type SidebarKey =
   | "transactions"
   | "loans"
   | "expenses"
+  | "approvals"
   | "settings"
   | "help"
   | "users"
@@ -15,6 +16,8 @@ export type SidebarKey =
   | "emails"
   | "whatsapp"
   | "groups"
+  | "deposit"
+  | "withdraw"
   | "my-loans"
   | "my-wallet"
   | "notifications"
@@ -29,6 +32,12 @@ export interface SidebarItem {
   module?: AppModule;
   /** Show only to members (role ME). */
   memberOnly?: boolean;
+  /**
+   * Show to officers with the governance module AND to members holding an
+   * active committee office. Visibility is evaluated with
+   * `useApproverAccess` (see SidebarLinks / MobileBottomNav).
+   */
+  requiresApprovalAccess?: boolean;
 }
 
 export const sidebarItems: SidebarItem[] = [
@@ -38,6 +47,7 @@ export const sidebarItems: SidebarItem[] = [
   { key: "transactions", icon: "ArrowRightLeft", to: "/transactions", module: "transactions" },
   { key: "loans", icon: "HandCoins", to: "/loans", module: "loans" },
   { key: "expenses", icon: "ReceiptText", to: "/expenses", module: "expenses" },
+  { key: "approvals", icon: "ClipboardCheck", to: "/approvals", requiresApprovalAccess: true },
   { key: "groups", icon: "Boxes", to: "/groups" },
   { key: "my-loans", icon: "HandCoins", to: "/loans-me", memberOnly: true },
   { key: "my-wallet", icon: "Wallet", to: "/wallet", memberOnly: true },
@@ -70,5 +80,4 @@ export const memberBottomNavPrimaryOrder: SidebarKey[] = [
   "dashboard",
   "my-wallet",
   "groups",
-  "profile",
 ];

@@ -6,6 +6,7 @@ from django.db.models import Sum
 from members.models import Member
 from .models import (
     ElectedRole,
+    GroupActivity,
     GroupContribution,
     GroupInvitation,
     GroupMembership,
@@ -41,10 +42,38 @@ class MemberBriefSerializer(serializers.ModelSerializer):
 
 class GroupMembershipSerializer(serializers.ModelSerializer):
     member = MemberBriefSerializer(read_only=True)
+    is_verified = serializers.BooleanField(source="member.is_verified", read_only=True)
+    member_status = serializers.CharField(source="member.status", read_only=True)
+    contribution_total = serializers.SerializerMethodField()
+    pending_contribution_total = serializers.SerializerMethodField()
 
     class Meta:
         model = GroupMembership
-        fields = ["id", "member", "role", "shares_count", "joined_at", "is_active"]
+        fields = [
+            "id",
+            "member",
+            "role",
+            "shares_count",
+            "joined_at",
+            "is_active",
+            "is_verified",
+            "member_status",
+            "contribution_total",
+            "pending_contribution_total",
+        ]
+
+    def _sum_for(self, obj, status):
+        total = obj.member.group_contributions.filter(
+            group=obj.group,
+            status=status,
+        ).aggregate(total=Sum("amount"))["total"]
+        return total or Decimal("0")
+
+    def get_contribution_total(self, obj):
+        return self._sum_for(obj, GroupContribution.Status.CONFIRMED)
+
+    def get_pending_contribution_total(self, obj):
+        return self._sum_for(obj, GroupContribution.Status.PENDING)
 
 
 class GroupCreateSerializer(serializers.ModelSerializer):
@@ -123,6 +152,73 @@ class GroupSerializer(GroupListSerializer):
     def get_total_shares(self, obj) -> int:
         total = obj.memberships.aggregate(total=Sum("shares_count"))["total"]
         return total or 0
+
+
+class GroupActivitySerializer(serializers.ModelSerializer):
+    actor = MemberBriefSerializer(read_only=True)
+    event_type_display = serializers.CharField(source="get_event_type_display", read_only=True)
+
+    class Meta:
+        model = GroupActivity
+        fields = [
+            "id",
+            "event_type",
+            "event_type_display",
+            "title",
+            "description",
+            "actor",
+            "metadata",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class GroupWorkspaceOverviewSerializer(serializers.Serializer):
+    group = serializers.DictField()
+    permissions = serializers.DictField()
+    contribution_summary = serializers.DictField()
+    loan_summary = serializers.DictField()
+    recent_ledger = serializers.ListField()
+    recent_activity = GroupActivitySerializer(many=True)
+    pending_items = serializers.DictField()
+
+
+class GroupLoanProjectionSerializer(serializers.Serializer):
+    loan_number = serializers.CharField()
+    borrower = MemberBriefSerializer()
+    product = serializers.CharField()
+    principal_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    outstanding_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    status = serializers.CharField()
+    next_repayment_amount = serializers.DecimalField(max_digits=12, decimal_places=2, allow_null=True)
+    next_due_date = serializers.DateField(allow_null=True)
+    repayment_status = serializers.CharField()
+
+
+class GroupRepaymentProjectionSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    borrower = MemberBriefSerializer()
+    loan_reference = serializers.CharField()
+    amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+    date = serializers.DateTimeField()
+    status = serializers.CharField()
+    transaction_reference = serializers.CharField()
+    description = serializers.CharField(allow_blank=True)
+
+
+class GroupLedgerEntrySerializer(serializers.Serializer):
+    id = serializers.CharField()
+    date = serializers.DateTimeField()
+    transaction_type = serializers.CharField()
+    member = MemberBriefSerializer(allow_null=True)
+    amount = serializers.DecimalField(max_digits=16, decimal_places=2)
+    status = serializers.CharField()
+    reference = serializers.CharField(allow_blank=True)
+    internal_reference = serializers.CharField(allow_blank=True)
+    provider_reference = serializers.CharField(allow_blank=True, allow_null=True)
+    related_contribution = serializers.IntegerField(allow_null=True)
+    related_loan = serializers.CharField(allow_blank=True)
+    description = serializers.CharField(allow_blank=True)
 
 
 class GroupInvitationSerializer(serializers.ModelSerializer):

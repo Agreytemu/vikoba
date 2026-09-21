@@ -6,6 +6,7 @@ import LucideIcon from "./LucideIcon";
 import { hasModuleAccess } from "@/lib/access-control";
 import { sidebarItems } from "@/lib/navigation";
 import { useUserProfileInfo } from "@/hooks/useUserProfile";
+import { useApproverAccess } from "@/hooks/useApproverAccess";
 import { Auth } from "@/contexts/AuthContext";
 import { useLogout } from "@/hooks/api/auth";
 
@@ -18,11 +19,14 @@ const SidebarLinks: FC<SidebarLinksProps> = ({ onClick }) => {
   const { profile } = useUserProfileInfo();
   const { logout } = Auth();
   const { mutate: endServerSession } = useLogout();
+  const { canAccessApprovals } = useApproverAccess();
   const visibleItems = sidebarItems.filter(
     (item) =>
       (!item.module || hasModuleAccess(profile?.role, item.module)) &&
       // Member-only items (e.g. member loan applications) are hidden for staff.
-      !(item.memberOnly && profile?.role !== "ME"),
+      !(item.memberOnly && profile?.role !== "ME") &&
+      // Officer + committee approvals workspace stays hidden otherwise.
+      (!item.requiresApprovalAccess || canAccessApprovals),
   );
   const handleLogout = () => {
     // Local logout is the source of truth and must happen immediately. Ending

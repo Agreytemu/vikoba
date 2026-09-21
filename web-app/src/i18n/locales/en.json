@@ -10,6 +10,7 @@
     "transactions": "Transactions",
     "loans": "Loans",
     "expenses": "Expenses",
+    "approvals": "Approvals",
     "settings": "Settings",
     "help": "Help",
     "users": "Users",
@@ -22,6 +23,8 @@
     "notifications": "Notifications",
     "community": "Community",
     "share-outs": "Share-outs",
+    "deposit": "Deposit",
+    "withdraw": "Withdraw",
     "profile": "Profile",
     "logout": "Logout",
     "more": "More"

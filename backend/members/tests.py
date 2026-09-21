@@ -59,6 +59,26 @@ class MemberSelfServiceAPITest(TestCase):
         self.assertTrue(self.member.phone_verified)
         self.assertFalse(self.member.is_verified)
 
+    def test_otp_verify_detects_snippe_network(self):
+        otp = PhoneOTP.issue(self.member, "+255755123456")  # Vodacom / M-Pesa
+        response = self.client.post(
+            self.url("verify-otp/"),
+            {"phone_number": "+255755123456", "code": otp.code},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["phone_network"], "mpesa")
+        self.member.refresh_from_db()
+        self.assertEqual(self.member.phone_network, "mpesa")
+
+    def test_otp_verify_unmapped_number_network_unknown(self):
+        otp = PhoneOTP.issue(self.member, "+254700111222")
+        response = self.client.post(
+            self.url("verify-otp/"),
+            {"phone_number": "+254700111222", "code": otp.code},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["phone_network"], "unknown")
+
     def test_member_cannot_reach_full_verification_without_every_step(self):
         """The member is only verified once every step + staff KYC review is done."""
         otp = PhoneOTP.issue(self.member, "+254700111222")

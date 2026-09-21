@@ -108,6 +108,21 @@ class Member(models.Model):
         default=RegistrationSource.ADMIN,
     )
     phone_verified = models.BooleanField(default=False)
+    # Snippe mobile-money network of the verified number (M-Pesa, Airtel, Mixx,
+    # Halotel). "unknown" until a number is verified.
+    class PhoneNetwork(models.TextChoices):
+        MPESA = "mpesa", "M-Pesa"
+        AIRTEL = "airtel", "Airtel Money"
+        MIXX = "mixx", "Mixx by Yas"
+        HALOTEL = "halotel", "Halotel"
+        UNKNOWN = "unknown", "Unknown"
+
+    phone_network = models.CharField(
+        max_length=10,
+        choices=PhoneNetwork.choices,
+        default=PhoneNetwork.UNKNOWN,
+        blank=True,
+    )
     verification_submitted = models.BooleanField(default=False)
     is_verified = models.BooleanField(default=False, db_index=True)
 
@@ -132,6 +147,7 @@ class Member(models.Model):
         return {
             "is_verified": self.is_verified,
             "phone_verified": self.phone_verified,
+            "phone_network": self.phone_network,
             "kyc_complete": self.is_kyc_complete(),
             "next_of_kin_added": self.next_of_kin.exists(),
             "submitted": self.verification_submitted,

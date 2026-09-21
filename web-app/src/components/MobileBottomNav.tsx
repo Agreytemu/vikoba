@@ -11,6 +11,7 @@ import {
 } from "@/lib/navigation";
 import { hasModuleAccess } from "@/lib/access-control";
 import { useUserProfileInfo } from "@/hooks/useUserProfile";
+import { useApproverAccess } from "@/hooks/useApproverAccess";
 import { Auth } from "@/contexts/AuthContext";
 import { useLogout } from "@/hooks/api/auth";
 
@@ -25,6 +26,7 @@ type BottomTab = SidebarItem | { key: "more"; icon: string; to: string };
 const MobileBottomNav: FC = () => {
   const { t } = useTranslation();
   const { profile } = useUserProfileInfo();
+  const { canAccessApprovals } = useApproverAccess();
   const { logout } = Auth();
   const { mutate: endServerSession } = useLogout();
   const [moreOpen, setMoreOpen] = useState(false);
@@ -36,7 +38,9 @@ const MobileBottomNav: FC = () => {
       (item) =>
         (!item.module || hasModuleAccess(profile?.role, item.module)) &&
         // Member-only items (e.g. member loan applications) are hidden for staff.
-        !(item.memberOnly && profile?.role !== "ME"),
+        !(item.memberOnly && profile?.role !== "ME") &&
+        // Officer + committee approvals workspace stays hidden otherwise.
+        (!item.requiresApprovalAccess || canAccessApprovals),
     );
     const primary = allowed
       .filter((item) => primaryOrder.includes(item.key))
@@ -47,7 +51,7 @@ const MobileBottomNav: FC = () => {
         ? [...primary, { key: "more", icon: "Ellipsis", to: "#" }]
         : primary;
     return { tabs, moreItems: more };
-  }, [profile?.role]);
+  }, [profile?.role, canAccessApprovals]);
 
   const handleLogout = () => {
     setMoreOpen(false);

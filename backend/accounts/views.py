@@ -145,13 +145,32 @@ class MemberWithdrawalRequestView(generics.ListCreateAPIView):
             )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        withdrawal = WithdrawalRequest.objects.create(
-            member=member,
-            account=serializer.context["account"],
-            amount=serializer.validated_data["amount"],
-            narration=serializer.validated_data.get("narration", ""),
-        )
-        return Response(WithdrawalRequestSerializer(withdrawal).data, status=status.HTTP_201_CREATED)
+        try:
+            from governance.errors import ApprovalError
+            from governance.withdrawals import submit_withdrawal
+
+            result = submit_withdrawal(
+                member=member,
+                account=serializer.context["account"],
+                amount=serializer.validated_data["amount"],
+                narration=serializer.validated_data.get("narration", ""),
+                network=request.data.get("network", ""),
+                requester=request.user,
+            )
+        except ApprovalError as exc:
+            return Response({"detail": exc.message, "code": exc.code}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            from payments.views import _payment_initiation_failure
+
+            return _payment_initiation_failure(exc)
+
+        data = WithdrawalRequestSerializer(result.withdrawal).data
+        data["decision"] = result.decision
+        data["decision_reason"] = result.reason
+        data["review_required"] = result.review_required
+        if hasattr(result, "approval") and result.approval is not None:
+            data["approval_id"] = result.approval.pk
+        return Response(data, status=status.HTTP_201_CREATED)
 
 
 class DepositRequestDecisionView(generics.GenericAPIView):
@@ -221,7 +240,13 @@ class DepositRequestDecisionView(generics.GenericAPIView):
 
 
 class WithdrawalRequestDecisionView(generics.GenericAPIView):
-    """Staff approve/reject a member's withdrawal request. Approval debits the account."""
+    """Staff approve/reject a member's withdrawal request.
+
+    Phase 4: approval no longer debits the account here — the payout flow owns
+    the ledger debit (exactly once, on ``payout.completed``). Approving through
+    this endpoint records a HUMAN approval in the governance engine and
+    dispatches the Snippe payout; the request's funds stay reserved until the
+    settlement webhook."""
 
     staff_roles = {User.ADMIN, User.MANAGER, User.OPERATION, User.FINANCE, User.ACCOUNTANT}
     permission_classes = [IsAuthenticated]
@@ -241,47 +266,51 @@ class WithdrawalRequestDecisionView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         decision = serializer.validated_data["decision"]
         decline_reason = serializer.validated_data.get("decline_reason", "")
+        member_user = getattr(withdrawal.member, "user", None)
 
-        if decision == "approve":
-            try:
-                post_savings_transaction(
-                    account=withdrawal.account,
-                    transaction_type=SavingsTransaction.WITHDRAWAL,
+        try:
+            from governance import workflow
+            from governance.errors import ApprovalError
+            from governance.models import ApprovalStatus, Decision, RequestType, RequiredLevel
+            from governance.withdrawals import request_for
+
+            approval = request_for(withdrawal)
+            if approval is None:
+                approval = workflow.create_request(
+                    group=None,
+                    request_type=RequestType.WITHDRAWAL,
+                    resource=withdrawal,
+                    requester=member_user,
                     amount=withdrawal.amount,
-                    user=request.user,
-                    narration=withdrawal.narration or f"Withdrawal {withdrawal.reference}",
+                    required_level=RequiredLevel.MANUAL,
+                    required_role="",
+                    decision=Decision.MANUAL_REVIEW,
+                    decision_reason=f"Staff decision on {withdrawal.reference}",
+                    policy_version="",
+                    metadata={},
                 )
-            except ValueError as exc:
-                return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
-            withdrawal.status = WithdrawalRequest.Status.APPROVED
-            withdrawal.processed_by = request.user
-            withdrawal.processed_at = timezone.now()
-            withdrawal.save(update_fields=["status", "processed_by", "processed_at"])
-            member_user = getattr(withdrawal.member, "user", None)
-            if member_user is not None:
-                notify_user(
-                    member_user,
-                    "Withdrawal confirmed",
-                    f"Your withdrawal of {withdrawal.amount} from {withdrawal.account.account_number} has been approved.",
-                    kind="withdrawal",
-                    link="/wallet",
-                    sms_to=withdrawal.member.phone_number or None,
-                )
-        else:
-            withdrawal.status = WithdrawalRequest.Status.REJECTED
-            withdrawal.decline_reason = decline_reason
-            withdrawal.processed_by = request.user
-            withdrawal.processed_at = timezone.now()
-            withdrawal.save(update_fields=["status", "decline_reason", "processed_by", "processed_at"])
-            member_user = getattr(withdrawal.member, "user", None)
-            if member_user is not None:
-                notify_user(
-                    member_user,
-                    "Withdrawal declined",
-                    decline_reason or "Your withdrawal request was declined.",
-                    kind="withdrawal",
-                    link="/wallet",
-                )
+
+            if decision == "approve":
+                workflow.approve(request=approval, user=request.user, reason=decline_reason or "Approved by staff")
+            else:
+                workflow.reject(request=approval, user=request.user, reason=decline_reason or "Rejected by staff")
+            withdrawal.refresh_from_db()
+        except ApprovalError as exc:
+            return Response({"detail": exc.message, "code": exc.code}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as exc:
+            from payments.views import _payment_initiation_failure
+
+            return _payment_initiation_failure(exc)
+
+        if decision == "approve" and member_user is not None:
+            notify_user(
+                member_user,
+                "Withdrawal in progress",
+                f"Your withdrawal of {withdrawal.amount} from {withdrawal.account.account_number} has been approved and is being paid.",
+                kind="withdrawal",
+                link="/wallet",
+                sms_to=withdrawal.member.phone_number or None,
+            )
 
         return Response(WithdrawalRequestSerializer(withdrawal).data)
 

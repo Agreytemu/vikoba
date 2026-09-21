@@ -12,11 +12,11 @@ import { useCurrency } from "@/contexts/CurrencyContext";
 
 const statusLabels: Record<LoanStatus, string> = {
   draft: "Draft", submitted: "Submitted", under_review: "Under review",
-  approved: "Approved", rejected: "Rejected", disbursed: "Disbursed",
+  approved: "Approved", rejected: "Rejected", cancelled: "Cancelled", disbursed: "Disbursed",
 };
 
 const statusVariant = (status: LoanStatus) =>
-  status === "rejected" ? "destructive" : status === "approved" || status === "disbursed" ? "default" : "secondary";
+  status === "rejected" || status === "cancelled" ? "destructive" : status === "approved" || status === "disbursed" ? "default" : "secondary";
 
 const Loans = () => {
   const [status, setStatus] = useState<LoanStatus | "">("");

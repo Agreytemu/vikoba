@@ -344,7 +344,7 @@ const DeviceCard = ({
                 type="text"
                 label="Or phone numbers (comma separated)"
                 value={bulkForm.phones}
-                placeholder="+2547…, +2547…"
+                placeholder="+2557…, +2557…"
                 onChange={(e) => setBulkForm({ ...bulkForm, phones: e.target.value })}
               />
               <FormInput

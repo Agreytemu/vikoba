@@ -51,7 +51,6 @@ const VerificationWorkflow: FC = () => {
 
   const [otpPhone, setOtpPhone] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
-  const [otpChannel, setOtpChannel] = useState<string | null>(null);
   const [otpInput, setOtpInput] = useState("");
   const [otpSending, setOtpSending] = useState(false);
 
@@ -96,13 +95,10 @@ const VerificationWorkflow: FC = () => {
     try {
       const result = await requestOtp(otpPhone);
       setDevCode(result.dev_mode && result.dev_code ? result.dev_code : null);
-      setOtpChannel(result.channel ?? null);
-      if (result.channel === "whatsapp") {
-        toast.success("Code sent to your WhatsApp.", { autoClose: 3000 });
-      } else if (result.dev_mode && result.dev_code) {
+      if (result.dev_mode && result.dev_code) {
         toast.info("Verification code sent (demo mode shows it below).", { autoClose: 3000 });
       } else {
-        toast.success("Verification code sent to your phone.", { autoClose: 2000 });
+        toast.success("Verification code sent to your phone by SMS.", { autoClose: 2000 });
       }
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not send code"), { autoClose: 3000 });
@@ -247,12 +243,12 @@ const VerificationWorkflow: FC = () => {
                 type="tel"
                 name="otpPhone"
                 value={otpPhone}
-                placeholder="+254712345678"
+                placeholder="+255712345678"
                 label="Phone number"
                 onChange={(e) => setOtpPhone(e.target.value)}
               />
               <Button
-                text={otpSending ? <Spinner /> : "Send verification code"}
+                text={otpSending ? <Spinner /> : "Send verification code by SMS"}
                 type="button"
                 variant="secondary"
                 onClick={handleSendOtp}
@@ -261,15 +257,6 @@ const VerificationWorkflow: FC = () => {
               {devCode && (
                 <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
                   Demo code: <span className="font-mono font-semibold">{devCode}</span>
-                </div>
-              )}
-              {otpChannel === "whatsapp" && (
-                <div className="flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-900 dark:bg-green-950/40 dark:text-green-200">
-                  <LucideIcon name="MessageCircle" size={16} className="mt-0.5" />
-                  <span>
-                    The code was sent as a WhatsApp message. Check WhatsApp on {otpPhone}
-                    and enter it below before it expires.
-                  </span>
                 </div>
               )}
               <div className="flex gap-2">
@@ -320,7 +307,7 @@ const VerificationWorkflow: FC = () => {
                 type="tel"
                 name="nokPhone"
                 value={nok.phone_number}
-                placeholder="+254712345678"
+                placeholder="+255712345678"
                 label="Phone"
                 onChange={(e) => setNok({ ...nok, phone_number: e.target.value })}
               />

@@ -28,6 +28,9 @@ urlpatterns = [
     path('api/v1/', include('groups.urls')),
     path('api/v1/', include('community.urls')),
     path('api/v1/', include('whatsapp.urls')),
+    path('api/v1/payments/', include('payments.urls')),
+    path('api/v1/finance/', include('finance.urls')),
+    path('api/v1/governance/', include('governance.urls')),
     # Keeps the established customer and loan APIs available while the loan UI is built.
     # Accounts and transactions above take precedence over the legacy routes with the
     # same names; /customers/ remains unique while /loans/ is now owned by the loans app.

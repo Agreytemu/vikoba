@@ -4,11 +4,12 @@ import Spinner from "@/components/Spinner";
 import LucideIcon from "@/components/LucideIcon";
 import { Badge } from "@/components/ui/badge";
 import { useGetMyShareOuts } from "@/hooks/api/shareOuts";
-
-const money = (value: string | number | null | undefined) =>
-  new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(Number(value || 0));
+import { useCurrency } from "@/contexts/CurrencyContext";
 
 const ShareOuts: FC = () => {
+  const { formatMoney } = useCurrency();
+  const money = (value: string | number | null | undefined) =>
+    formatMoney(Number(value || 0), { maxFractionDigits: 0 });
   const { data: records, isLoading } = useGetMyShareOuts();
 
   const totals = (records ?? []).reduce((acc, r) => {

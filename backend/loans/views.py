@@ -15,6 +15,7 @@ from .serializers import (
 	LoanApplicationDocumentSerializer,
 	LoanApplicationGuarantorSerializer,
 	LoanApplicationListSerializer,
+	LoanCancelSerializer,
 	LoanDisbursementSerializer,
 	LoanRepaymentSerializer,
 	LoanRejectionSerializer,
@@ -25,12 +26,15 @@ from .serializers import (
 	MemberRepaySerializer,
 )
 from .services import (
+	approve_application,
 	build_eligibility_summary,
 	compute_member_eligibility,
 	disburse_application,
+	infer_group,
 	post_installment_repayment,
 )
 from accounts.models import SavingsAccount
+from finance.models import AuditEvent
 
 
 REVIEW_ROLES = {User.ADMIN, User.MANAGER, User.OPERATION}
@@ -143,6 +147,7 @@ class LoanApplicationViewSet(
 			return Response({"detail": "Only loan officers or admins can submit applications."}, status=status.HTTP_403_FORBIDDEN)
 
 		application = self.get_object()
+		infer_group(application)
 		summary = build_eligibility_summary(application)
 		try:
 			application.submit(request.user, warnings=summary["warnings"])
@@ -175,10 +180,16 @@ class LoanApplicationViewSet(
 		serializer.is_valid(raise_exception=True)
 
 		try:
-			application.approve(request.user, serializer.validated_data["approval_notes"])
+			approve_application(
+				application=application,
+				user=request.user,
+				notes=serializer.validated_data["approval_notes"],
+				approved_amount=serializer.validated_data.get("approved_amount"),
+			)
 		except ValueError as exc:
 			return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
+		application.refresh_from_db()
 		return Response(LoanApplicationDetailSerializer(application, context={"request": request}).data)
 
 	@action(detail=True, methods=["post"], url_path="reject")
@@ -192,8 +203,47 @@ class LoanApplicationViewSet(
 
 		try:
 			application.reject(request.user, serializer.validated_data["rejection_reason"])
+			from governance.loans import record_loan_decision
+
+			record_loan_decision(
+				application=application,
+				user=request.user,
+				action="rejected",
+				reason=serializer.validated_data["rejection_reason"],
+			)
 		except ValueError as exc:
 			return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+		return Response(LoanApplicationDetailSerializer(application, context={"request": request}).data)
+
+	@action(detail=True, methods=["post"], url_path="cancel")
+	def cancel(self, request, application_number=None):
+		if not has_role(request.user, REVIEW_ROLES):
+			return Response({"detail": "Only managers, operations managers, or admins can cancel applications."}, status=status.HTTP_403_FORBIDDEN)
+
+		application = self.get_object()
+		serializer = LoanCancelSerializer(data=request.data)
+		serializer.is_valid(raise_exception=True)
+
+		try:
+			application.cancel(request.user, reason=serializer.validated_data["reason"])
+			from governance.loans import record_loan_decision
+
+			record_loan_decision(
+				application=application,
+				user=request.user,
+				action="cancelled",
+				reason=serializer.validated_data["reason"],
+			)
+		except ValueError as exc:
+			return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
+		AuditEvent.objects.create(
+			user=request.user,
+			action="loan.application.cancelled",
+			reference=application.application_number,
+			metadata={"reason": serializer.validated_data["reason"]},
+		)
 
 		return Response(LoanApplicationDetailSerializer(application, context={"request": request}).data)
 
@@ -234,6 +284,7 @@ class LoanApplicationViewSet(
 				account=serializer.context["account"],
 				user=request.user,
 				narration=serializer.validated_data["narration"],
+				amount=serializer.validated_data.get("amount"),
 			)
 		except ValueError as exc:
 			return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -359,6 +410,7 @@ class MemberLoanApplicationViewSet(
 		if application.status != LoanApplication.Status.DRAFT:
 			return Response({"detail": "Only draft applications can be submitted."}, status=status.HTTP_400_BAD_REQUEST)
 
+		infer_group(application)
 		summary = build_eligibility_summary(application)
 		try:
 			application.submit(request.user, warnings=summary["warnings"])
@@ -471,6 +523,7 @@ class MemberLoanAccountViewSet(
 				account=account,
 				user=request.user,
 				narration="Self-service installment repayment",
+				amount=serializer.validated_data.get("amount"),
 			)
 		except ValueError as exc:
 			return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
@@ -480,6 +533,27 @@ class MemberLoanAccountViewSet(
 				LoanAccount.objects.select_related("product").prefetch_related("schedule").get(pk=loan.pk)
 			).data
 		)
+
+	@action(detail=True, methods=["get"], url_path="balance")
+	def balance(self, request, loan_number=None):
+		loan = self.get_object()
+		next_installment = (
+			loan.schedule.filter(is_paid=False).order_by("installment_number").first()
+		)
+		return Response({
+			"loan_number": loan.loan_number,
+			"currency": "TZS",
+			"status": loan.status,
+			"outstanding_principal": loan.outstanding_principal,
+			"outstanding_interest": loan.outstanding_interest,
+			"outstanding_penalty": loan.outstanding_penalty,
+			"total_outstanding": loan.total_outstanding,
+			"next_installment": {
+				"installment_number": next_installment.installment_number,
+				"due_date": next_installment.due_date,
+				"amount_due": next_installment.outstanding_due,
+			} if next_installment is not None else None,
+		})
 
 
 class MemberEligibilityView(APIView):

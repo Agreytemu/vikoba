@@ -16,6 +16,8 @@
     "sms": "SMS",
     "emails": "E-mails",
     "whatsapp": "WhatsApp",
+    "deposit": "Dépôt",
+    "withdraw": "Retrait",
     "logout": "Déconnexion"
   },
   "common": {

@@ -10,6 +10,8 @@ from .models import (
     LoanProduct,
     LoanAccount,
     LoanTransaction,
+    LoanPenalty,
+    GroupLoanPolicy,
 )
 from .forms import LoanRepaymentForm
 
@@ -62,8 +64,10 @@ class LoanAccountAdmin(admin.ModelAdmin):
         "loan_number",
         "outstanding_principal",
         "outstanding_interest",
+        "outstanding_penalty",
         "approved_at",
         "disbursed_at",
+        "closed_at",
         "created_at",
     )
 
@@ -190,4 +194,24 @@ class LoanAccountAdmin(admin.ModelAdmin):
             "admin/loans/loanaccount/repay_form.html",
             context,
         )
+
+
+@admin.register(LoanPenalty)
+class LoanPenaltyAdmin(admin.ModelAdmin):
+    list_display = (
+        "loan",
+        "installment",
+        "amount",
+        "amount_paid",
+        "status",
+        "created_at",
+    )
+    list_filter = ("status",)
+    readonly_fields = ("amount_paid", "created_at", "paid_at", "waived_at")
+
+
+@admin.register(GroupLoanPolicy)
+class GroupLoanPolicyAdmin(admin.ModelAdmin):
+    list_display = ("group", "max_amount", "max_term_months", "group_capacity_enabled", "updated_at")
+    search_fields = ("group__name",)
 

@@ -25,7 +25,8 @@ import {
 import { useGetMyMemberProfile } from "@/hooks/api/memberSelf";
 import { useGetMyAccounts } from "@/hooks/api/myAccounts";
 import { useUserProfileInfo } from "@/hooks/useUserProfile";
-import { MyLoanListItem, MyLoanScheduleEntry } from "@/services/memberLoans";
+import { useCurrency } from "@/contexts/CurrencyContext";
+import { MyLoanAccount, MyLoanListItem, MyLoanScheduleEntry } from "@/services/memberLoans";
 import { getApiErrorMessage } from "@/lib/utils";
 import { Link } from "react-router-dom";
 
@@ -35,6 +36,7 @@ const STATUS_LABELS: Record<string, string> = {
   under_review: "Under review",
   approved: "Approved",
   rejected: "Rejected",
+  cancelled: "Cancelled",
   disbursed: "Disbursed",
 };
 
@@ -44,6 +46,7 @@ const STATUS_STYLES: Record<string, string> = {
   under_review: "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200 border-transparent",
   approved: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200 border-transparent",
   rejected: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200 border-transparent",
+  cancelled: "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-transparent",
   disbursed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 border-transparent",
 };
 
@@ -53,6 +56,7 @@ const STATUS_COLORS: Record<string, `bg-${string}`> = {
   under_review: "bg-amber-500",
   approved: "bg-green-500",
   rejected: "bg-red-500",
+  cancelled: "bg-slate-400",
   disbursed: "bg-emerald-500",
 };
 
@@ -73,9 +77,6 @@ const DOCUMENT_TYPES = [
   "Loan application form",
   "Other",
 ];
-
-const money = (value: string | number | null | undefined) =>
-  new Intl.NumberFormat("en-KE", { style: "currency", currency: "KES", maximumFractionDigits: 0 }).format(Number(value || 0));
 
 const MemberLoans = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -209,7 +210,11 @@ const MemberLoans = () => {
   );
 };
 
-const LoanCard = ({ loan, onOpen }: { loan: MyLoanListItem; onOpen: () => void }) => (
+const LoanCard = ({ loan, onOpen }: { loan: MyLoanListItem; onOpen: () => void }) => {
+  const { formatMoney } = useCurrency();
+  const money = (value: string | number | null | undefined) =>
+    formatMoney(Number(value || 0), { maxFractionDigits: 0 });
+  return (
   <button
     type="button"
     onClick={onOpen}
@@ -232,7 +237,8 @@ const LoanCard = ({ loan, onOpen }: { loan: MyLoanListItem; onOpen: () => void }
       <Badge className={STATUS_STYLES[loan.status] ?? ""}>{STATUS_LABELS[loan.status] ?? loan.status}</Badge>
     </div>
   </button>
-);
+  );
+};
 
 interface ApplyLoanValues {
   loan_type: number;
@@ -255,6 +261,9 @@ const ApplyLoanModal = ({ isOpen, onClose, loanTypes, isSubmitting, onSubmit }: 
   isSubmitting: boolean;
   onSubmit: (values: ApplyLoanValues) => void;
 }) => {
+  const { formatMoney, currency } = useCurrency();
+  const money = (value: string | number | null | undefined) =>
+    formatMoney(Number(value || 0), { maxFractionDigits: 0 });
   const [values, setValues] = useState<ApplyLoanValues>({
     loan_type: 0,
     requested_amount: "",
@@ -321,7 +330,7 @@ const ApplyLoanModal = ({ isOpen, onClose, loanTypes, isSubmitting, onSubmit }: 
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label htmlFor="requested_amount" className="mb-1 block text-sm font-medium">Amount (KES)</label>
+            <label htmlFor="requested_amount" className="mb-1 block text-sm font-medium">Amount ({currency})</label>
             <input
               id="requested_amount"
               name="requested_amount"
@@ -406,6 +415,9 @@ const LoanDetailModal = ({ applicationNumber, onClose }: { applicationNumber: st
   const [guaranteedAmount, setGuaranteedAmount] = useState("");
   const [documentType, setDocumentType] = useState(DOCUMENT_TYPES[0]);
   const [file, setFile] = useState<File | null>(null);
+  const { formatMoney } = useCurrency();
+  const money = (value: string | number | null | undefined) =>
+    formatMoney(Number(value || 0), { maxFractionDigits: 0 });
 
   if (!loan) {
     return (
@@ -469,7 +481,15 @@ const LoanDetailModal = ({ applicationNumber, onClose }: { applicationNumber: st
           {loan.collateral_description && <div className="col-span-2"><dt className="text-slate-500">Collateral</dt><dd>{loan.collateral_description}</dd></div>}
           <div><dt className="text-slate-500">Employer</dt><dd>{loan.employer || "—"}</dd></div>
           {loan.gross_salary != null && <div><dt className="text-slate-500">Gross salary</dt><dd>{money(loan.gross_salary)}</dd></div>}
+          {loan.approved_amount != null && <div className="col-span-2"><dt className="text-slate-500">Approved amount</dt><dd className="font-medium">{money(loan.approved_amount)}</dd></div>}
         </dl>
+
+        {loan.status === "cancelled" && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-300">
+            This application was cancelled{loan.cancelled_at ? ` on ${new Date(loan.cancelled_at).toLocaleDateString()}` : ""}.
+            {loan.rejection_reason ? ` Reason: ${loan.rejection_reason}` : ""}
+          </div>
+        )}
 
         {loan.eligibility_warnings.length > 0 && (
           <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
@@ -540,6 +560,9 @@ const LoanDetailModal = ({ applicationNumber, onClose }: { applicationNumber: st
 };
 
 const EligibilityCard = () => {
+  const { formatMoney } = useCurrency();
+  const money = (value: string | number | null | undefined) =>
+    formatMoney(Number(value || 0), { maxFractionDigits: 0 });
   const { data: eligibility, isLoading } = useGetMyEligibility();
   const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [amount, setAmount] = useState("");
@@ -637,11 +660,18 @@ const RepayCard = ({ account, onRepay }: {
     product: string;
     status_display: string;
     outstanding_balance: string;
+    outstanding_penalty?: string;
+    next_installment?: MyLoanAccount["next_installment"];
     schedule: MyLoanScheduleEntry[];
   };
   onRepay: () => void;
 }) => {
+  const { formatMoney } = useCurrency();
+  const money = (value: string | number | null | undefined) =>
+    formatMoney(Number(value || 0), { maxFractionDigits: 0 });
   const nextUnpaid = account.schedule.find((s) => !s.is_paid);
+  const next = account.next_installment;
+  const hasPenalty = Number(account.outstanding_penalty || 0) > 0;
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900">
       <div>
@@ -649,14 +679,21 @@ const RepayCard = ({ account, onRepay }: {
         <p className="text-xs text-slate-500 dark:text-slate-400">
           {account.loan_number} · {account.status_display}
         </p>
+        {hasPenalty && (
+          <p className="mt-1 text-xs font-medium text-red-600 dark:text-red-400">
+            Includes overdue penalty of {money(account.outstanding_penalty)}
+          </p>
+        )}
       </div>
       <div className="flex items-center gap-4">
         <div className="text-right">
           <p className="font-display font-semibold">{money(account.outstanding_balance)}</p>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {nextUnpaid
-              ? `Next: ${money(nextUnpaid.total_due)} due ${new Date(nextUnpaid.due_date).toLocaleDateString()}`
-              : "Fully paid"}
+            {next
+              ? `Next: ${money(next.amount_due)} due ${new Date(next.due_date).toLocaleDateString()}`
+              : nextUnpaid
+                ? `Next: ${money(nextUnpaid.outstanding_due)} due ${new Date(nextUnpaid.due_date).toLocaleDateString()}`
+                : "Fully paid"}
           </p>
         </div>
         {nextUnpaid && (
@@ -672,6 +709,9 @@ const RepayModal = ({ loanNumber, repaymentSchedule, onClose }: {
   repaymentSchedule: MyLoanScheduleEntry[];
   onClose: () => void;
 }) => {
+  const { formatMoney } = useCurrency();
+  const money = (value: string | number | null | undefined) =>
+    formatMoney(Number(value || 0), { maxFractionDigits: 0 });
   const repay = useRepayMyLoan(loanNumber);
   const payoutAccounts = useGetMyAccounts();
   const [installmentNumber, setInstallmentNumber] = useState<number | null>(null);
@@ -686,7 +726,12 @@ const RepayModal = ({ loanNumber, repaymentSchedule, onClose }: {
     if (!installmentNumber) return toast.error("Choose the installment to repay.");
     if (!accountNumber) return toast.error("Choose the savings account to pay from.");
     try {
-      await repay.mutateAsync({ account_number: accountNumber, installment_number: installmentNumber });
+      const installment = repaymentSchedule.find((s) => s.installment_number === installmentNumber);
+      await repay.mutateAsync({
+        account_number: accountNumber,
+        installment_number: installmentNumber,
+        amount: installment ? installment.outstanding_due : undefined,
+      });
       toast.success(`Installment ${installmentNumber} paid from ${account?.product_name ?? accountNumber}.`, { autoClose: 4000 });
       onClose();
     } catch (error) {
@@ -707,10 +752,16 @@ const RepayModal = ({ loanNumber, repaymentSchedule, onClose }: {
             <option value="">Select installment…</option>
             {unpaid.map((s) => (
               <option key={s.id} value={s.installment_number}>
-                Installment {s.installment_number} · {money(s.total_due)}
+                Installment {s.installment_number} · {money(s.outstanding_due)}
+                {Number(s.partially_paid_amount) > 0 ? ` of ${money(s.total_due)}` : ""} · {s.status.replace(/_/g, " ").toLowerCase()}
               </option>
             ))}
           </select>
+          {installmentNumber && (
+            <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
+              The full amount due (including anything left after a partial payment) will be deducted from your savings.
+            </p>
+          )}
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium">Pay from savings account</label>

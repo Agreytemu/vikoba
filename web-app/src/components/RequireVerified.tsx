@@ -1,6 +1,7 @@
-import { FC, ReactNode } from "react";
+import { FC, ReactNode, useEffect } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useGetMyMemberProfile } from "@/hooks/api/memberSelf";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import Spinner from "@/components/Spinner";
 
 interface RequireVerifiedProps {
@@ -18,6 +19,12 @@ interface RequireVerifiedProps {
 const RequireVerified: FC<RequireVerifiedProps> = ({ children }) => {
   const location = useLocation();
   const { data: profile, isLoading, isError } = useGetMyMemberProfile();
+  const { syncFromProfile } = useCurrency();
+
+  // Member's onboarding currency (TZS/USD) drives every amount shown inside.
+  useEffect(() => {
+    if (profile?.preferred_currency) syncFromProfile(profile.preferred_currency);
+  }, [profile?.preferred_currency, syncFromProfile]);
 
   if (isLoading) {
     return (

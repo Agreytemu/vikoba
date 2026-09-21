@@ -9,8 +9,21 @@ from django.utils import timezone
 
 from accounts.models import SavingsTransaction
 from accounts.services import post_savings_transaction
+from finance.models import AuditEvent, FinancialTransaction
+from finance.services.accounts_catalog import get_org_account
+from finance.services.engine import post_transaction
 
-from .models import LoanAccount, LoanApplication, LoanProduct, LoanSchedule, LoanTransaction
+from .calculations import ZERO, _money, build_installments, expected_due_dates
+from .eligibility import check_eligibility
+from .models import (
+    LoanAccount,
+    LoanApplication,
+    LoanProduct,
+    LoanSchedule,
+    LoanTransaction,
+)
+from .policies import effective_values
+from .repayments import post_repayment
 
 
 MINIMUM_MEMBERSHIP_MONTHS = getattr(settings, "LOAN_MINIMUM_MEMBERSHIP_MONTHS", 3)
@@ -18,11 +31,6 @@ MINIMUM_MONTHLY_CONTRIBUTION = Decimal(
     str(getattr(settings, "LOAN_MINIMUM_MONTHLY_CONTRIBUTION", "0.00"))
 )
 DEFAULT_LOAN_MULTIPLIER = Decimal("3.00")
-MONEY = Decimal("0.01")
-
-
-def _money(value):
-    return Decimal(value).quantize(MONEY, rounding=ROUND_HALF_UP)
 
 
 def _add_months(value: date, months: int) -> date:
@@ -32,51 +40,131 @@ def _add_months(value: date, months: int) -> date:
     return date(year, month, min(value.day, monthrange(year, month)[1]))
 
 
+def _audit_loan(*, action, reference, user=None, loan=None, **metadata):
+    return AuditEvent.objects.create(
+        user=user,
+        action=action,
+        reference=reference,
+        transaction=None,
+        metadata={**metadata, "loan": getattr(loan, "loan_number", None)},
+    )
+
+
+def infer_group(application: LoanApplication):
+    """Attach the member's first active group membership to the application.
+
+    Group lending rules only apply once the application is tied to a group;
+    applications without a group keep product-level behaviour (and skip the
+    group capacity gate).
+    """
+    if application.group_id:
+        return application.group
+    from groups.models import GroupMembership
+
+    membership = (
+        GroupMembership.objects.filter(member=application.member, is_active=True)
+        .order_by("joined_at", "id")
+        .first()
+    )
+    if membership is not None:
+        application.group = membership.group
+        application.save(update_fields=["group"])
+    return application.group
+
+
 def create_repayment_schedule(*, loan: LoanAccount):
     """Create monthly installments using the product's configured interest method."""
-    principal, months = loan.principal_amount, loan.term_months
-    annual_rate = loan.interest_rate / Decimal("100")
-    rows = []
-
-    if loan.product.interest_type == LoanProduct.FLAT:
-        total_interest = _money(principal * annual_rate * Decimal(months) / Decimal("12"))
-        monthly_principal, monthly_interest = _money(principal / months), _money(total_interest / months)
-        principal_remaining, interest_remaining = principal, total_interest
-        for number in range(1, months + 1):
-            principal_due = principal_remaining if number == months else monthly_principal
-            interest_due = interest_remaining if number == months else monthly_interest
-            rows.append((principal_due, interest_due))
-            principal_remaining -= principal_due
-            interest_remaining -= interest_due
-    else:
-        monthly_rate = annual_rate / Decimal("12")
-        payment = _money(principal / months) if not monthly_rate else _money(
-            principal * monthly_rate / (Decimal("1") - (Decimal("1") + monthly_rate) ** -months)
-        )
-        principal_remaining = principal
-        for number in range(1, months + 1):
-            interest_due = _money(principal_remaining * monthly_rate)
-            principal_due = principal_remaining if number == months else _money(payment - interest_due)
-            rows.append((principal_due, interest_due))
-            principal_remaining -= principal_due
-
+    rows = build_installments(
+        principal=loan.principal_amount,
+        annual_rate=loan.interest_rate,
+        months=loan.term_months,
+        interest_type=loan.interest_type,
+    )
     schedules = [
         LoanSchedule(
             loan=loan,
             installment_number=number,
-            due_date=_add_months(loan.disbursed_at.date(), number),
+            due_date=due_date,
             principal_due=principal_due,
             interest_due=interest_due,
-            total_due=_money(principal_due + interest_due),
+            total_due=total_due,
         )
-        for number, (principal_due, interest_due) in enumerate(rows, start=1)
+        for number, (principal_due, interest_due, total_due), due_date in zip(
+            range(1, len(rows) + 1),
+            rows,
+            expected_due_dates(disbursed_on=loan.disbursed_at.date(), months=len(rows)),
+        )
     ]
     LoanSchedule.objects.bulk_create(schedules)
     return schedules
 
 
-def post_installment_repayment(*, loan: LoanAccount, installment_number: int, account, user, narration=""):
-    """Debit a member account and settle exactly one scheduled installment."""
+def approve_application(*, application, user, notes="", approved_amount=None):
+    """Authoritative approval: re-checks every blocking eligibility rule, then
+    records the final approved amount. Group capacity is enforced under a lock
+    on the group row so concurrent approvals cannot exceed the cap.
+    """
+    with transaction.atomic():
+        app = (
+            LoanApplication.objects.select_for_update()
+            .select_related("member", "loan_type", "group")
+            .get(pk=application.pk)
+        )
+        if app.status != LoanApplication.Status.UNDER_REVIEW:
+            raise ValueError("Only applications under review can be approved.")
+
+        amount = _money(approved_amount if approved_amount is not None else app.requested_amount)
+
+        if app.group_id is not None:
+            from groups.models import VikobaGroup
+
+            VikobaGroup.objects.select_for_update().get(pk=app.group_id)
+
+        ok, errors = check_eligibility(app, approved_amount=amount)
+        if not ok:
+            raise ValueError("; ".join(errors))
+
+        app.approved_amount = amount
+        app.approve(user, notes)
+        loan_ref = LoanAccount.objects.filter(application=app).first()
+        _audit_loan(
+            action="loan.application.approved",
+            reference=app.application_number,
+            user=user,
+            loan=loan_ref,
+            approved_amount=str(amount),
+            requested_amount=str(app.requested_amount),
+            notes=notes,
+        )
+        _record_governance_loan_decision(application=app, user=user, action="approved", reason=notes, approved_amount=amount)
+    return app
+
+
+def _record_governance_loan_decision(*, application, user, action, reason="", approved_amount=None):
+    """Best-effort governance observation; never blocks the loan flow."""
+    try:
+        from governance.loans import record_loan_decision
+
+        record_loan_decision(
+            application=application,
+            user=user,
+            action=action,
+            reason=reason or "",
+            approved_amount=approved_amount,
+        )
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def post_installment_repayment(*, loan: LoanAccount, installment_number: int, account, user, narration="", amount=None):
+    """Debit a member savings account and settle one scheduled installment.
+
+    The VICOBA member-savings leg is preserved (the tests and existing ledger
+    semantics rely on the WITHDRAWAL row); the loan settlement itself runs
+    through the shared :func:`post_repayment` core. ``amount`` defaults to the
+    installment's full ``total_due``; pass a lower ``amount`` to make a partial
+    repayment (the remainder stays due on the installment).
+    """
     with transaction.atomic():
         loan = LoanAccount.objects.select_for_update().get(pk=loan.pk)
         if loan.status != LoanAccount.DISBURSED:
@@ -85,33 +173,29 @@ def post_installment_repayment(*, loan: LoanAccount, installment_number: int, ac
         if installment.is_paid:
             raise ValueError("This installment has already been paid.")
 
-        payment = LoanTransaction.objects.create(
-            loan=loan,
-            transaction_type=LoanTransaction.REPAYMENT,
-            amount=installment.total_due,
-            reference=f"REPAY-{loan.loan_number}-{installment.installment_number}",
-            narration=narration or f"Installment {installment.installment_number} repayment",
-            performed_by=user,
-        )
-        post_savings_transaction(
+        pay_amount = _money(amount if amount is not None else installment.total_due)
+        if pay_amount <= 0:
+            raise ValueError("Repayment amount must be greater than zero.")
+        if pay_amount > loan.total_outstanding:
+            raise ValueError("Repayment exceeds the outstanding obligation on this loan.")
+
+        savings_txn = post_savings_transaction(
             account=account,
             transaction_type=SavingsTransaction.WITHDRAWAL,
-            amount=installment.total_due,
+            amount=pay_amount,
             user=user,
             narration=narration or f"Loan {loan.loan_number} installment {installment.installment_number}",
         )
-        installment.is_paid = True
-        installment.paid_at = timezone.now()
-        installment.paid_by = user
-        installment.payment_transaction = payment
-        installment.save(update_fields=["is_paid", "paid_at", "paid_by", "payment_transaction"])
 
-        loan.outstanding_principal = max(Decimal("0.00"), loan.outstanding_principal - installment.principal_due)
-        loan.outstanding_interest = max(Decimal("0.00"), loan.outstanding_interest - installment.interest_due)
-        if not loan.schedule.filter(is_paid=False).exists():
-            loan.status = LoanAccount.CLOSED
-        loan.save(update_fields=["outstanding_principal", "outstanding_interest", "status"])
-        return installment
+        post_repayment(
+            loan=loan,
+            amount=pay_amount,
+            user=user,
+            narration=narration or f"Installment {installment.installment_number} repayment",
+            savings_transaction=savings_txn,
+            installment_number=installment_number,
+        )
+        return loan.schedule.get(installment_number=installment_number)
 
 
 def _months_between(start_date, end_date):
@@ -131,7 +215,8 @@ def build_eligibility_summary(application: LoanApplication):
         ).aggregate(total=Sum("amount")).get("total")
         or Decimal("0.00")
     )
-    multiplier = application.loan_type.multiplier or DEFAULT_LOAN_MULTIPLIER
+    values = effective_values(application.group, application.loan_type)
+    multiplier = values["multiplier"] or DEFAULT_LOAN_MULTIPLIER
     eligible_amount = deposits * multiplier
     active_loans = LoanAccount.objects.filter(
         member=member,
@@ -145,8 +230,9 @@ def build_eligibility_summary(application: LoanApplication):
     estimated_total_repayable = application.requested_amount
     if application.repayment_period_months:
         months = application.repayment_period_months
-        annual_rate = application.loan_type.interest_rate / Decimal("100")
-        if application.loan_type.interest_type == LoanProduct.FLAT:
+        annual_rate = values["interest_rate"] / Decimal("100")
+        interest_type = values["interest_type"]
+        if interest_type == LoanProduct.FLAT:
             estimated_total_interest = _money(
                 application.requested_amount * annual_rate * Decimal(months) / Decimal("12")
             )
@@ -307,7 +393,7 @@ def disburse_application(*, application: LoanApplication, account, user, notes="
         # member account twice. The account service locks the account row itself.
         application = (
             LoanApplication.objects.select_for_update()
-            .select_related("member", "loan_type")
+            .select_related("member", "loan_type", "group")
             .get(pk=application.pk)
         )
 
@@ -320,17 +406,22 @@ def disburse_application(*, application: LoanApplication, account, user, notes="
         if account.member_id != application.member_id:
             raise ValueError("Disbursement account must belong to the application member.")
 
+        principal = _money(application.approved_amount or application.requested_amount)
+        values = effective_values(application.group, application.loan_type)
+
         loan_account = LoanAccount.objects.create(
             application=application,
             member=application.member,
             product=application.loan_type,
-            principal_amount=application.requested_amount,
-            interest_rate=application.loan_type.interest_rate,
+            principal_amount=principal,
+            interest_rate=values["interest_rate"],
+            interest_type=values["interest_type"],
+            penalty_rate=values["penalty_rate"],
             term_months=application.repayment_period_months,
             approved_at=application.approved_at,
             disbursed_at=timezone.now(),
             status=LoanAccount.DISBURSED,
-            outstanding_principal=application.requested_amount,
+            outstanding_principal=principal,
             outstanding_interest=Decimal("0.00"),
             created_by=application.created_by,
         )
@@ -338,15 +429,38 @@ def disburse_application(*, application: LoanApplication, account, user, notes="
         post_savings_transaction(
             account=account,
             transaction_type=SavingsTransaction.DEPOSIT,
-            amount=application.requested_amount,
+            amount=principal,
             user=user,
             narration=notes or f"Loan disbursement for {application.application_number}",
+        )
+
+        post_transaction(
+            transaction_type=FinancialTransaction.TransactionType.LOAN_DISBURSEMENT,
+            amount=principal,
+            group=application.group,
+            member=application.member,
+            description=f"Loan disbursement {application.application_number}",
+            idempotency_key=f"disb-{application.application_number}",
+            initiated_by=user,
+            loan=loan_account,
+            entries=[
+                {
+                    "account": get_org_account("1300-LOAN_PRINCIPAL"),
+                    "entry_type": "DEBIT",
+                    "amount": principal,
+                },
+                {
+                    "account": get_org_account("1100-CLEARING"),
+                    "entry_type": "CREDIT",
+                    "amount": principal,
+                },
+            ],
         )
 
         LoanTransaction.objects.create(
             loan=loan_account,
             transaction_type=LoanTransaction.DISBURSEMENT,
-            amount=application.requested_amount,
+            amount=principal,
             reference=f"LTX-{application.application_number}",
             narration=notes or f"Loan disbursement to {account.account_number}",
             performed_by=user,
@@ -357,6 +471,16 @@ def disburse_application(*, application: LoanApplication, account, user, notes="
             (item.interest_due for item in schedule), Decimal("0.00")
         )
         loan_account.save(update_fields=["outstanding_interest"])
+
+        _audit_loan(
+            action="loan.disbursed",
+            reference=application.application_number,
+            user=user,
+            loan=loan_account,
+            amount=str(principal),
+            account=account.account_number,
+            notes=notes,
+        )
 
         application.status = LoanApplication.Status.DISBURSED
         application.disbursed_by = user

@@ -5,13 +5,10 @@ import { toast } from "react-toastify";
 import Spinner from "@/components/Spinner";
 import { SkeletonGrid } from "@/components/Skeleton";
 import LucideIcon from "@/components/LucideIcon";
-import Modal from "@/components/ui/Modal";
 import { Button } from "@/components/ui/button";
-import FormInput from "@/components/FormInput";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import {
   useAcceptInvite,
-  useCreateGroup,
   useGetMyGroups,
   useGetMyGroupsSummary,
   useGetPendingInvitations,
@@ -19,7 +16,7 @@ import {
 import { useGetMyMemberProfile } from "@/hooks/api/memberSelf";
 import { useUserProfileInfo } from "@/hooks/useUserProfile";
 import { getApiErrorMessage } from "@/lib/utils";
-import { formatPlace, reverseGeocodePlace } from "@/lib/geo";
+import { formatPlace } from "@/lib/geo";
 
 const GroupsPage: FC = () => {
   const navigate = useNavigate();
@@ -33,54 +30,13 @@ const GroupsPage: FC = () => {
   );
   const { data: mySummary } = useGetMyGroupsSummary(profile?.role === "ME");
 
-  const createGroup = useCreateGroup();
   const acceptInvite = useAcceptInvite();
 
-  const [createOpen, setCreateOpen] = useState(false);
   const [accepting, setAccepting] = useState<string | null>(null);
-  const [detectingLocation, setDetectingLocation] = useState(false);
-  const [locationLabel, setLocationLabel] = useState("");
-  const [form, setForm] = useState({
-    name: "",
-    area: "",
-    region: "",
-    country: "",
-    description: "",
-  });
 
   const groupLimit = isVerified ? 3 : 1;
   const createdCount = mySummary?.created_count ?? 0;
   const atGroupLimit = createdCount >= groupLimit;
-
-  const handleUseMyLocation = () => {
-    if (!navigator.geolocation) {
-      toast.error("Location not supported on this device. Please type the area manually.", { autoClose: 3000 });
-      return;
-    }
-    setDetectingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords;
-        const place = await reverseGeocodePlace(latitude, longitude);
-        setLocationLabel(formatPlace(place));
-        setForm((prev) => ({
-          ...prev,
-          area: prev.area.trim() ? prev.area : place.area || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
-          region: prev.region.trim() ? prev.region : place.region,
-          country: prev.country.trim() ? prev.country : place.country || "Tanzania",
-        }));
-        if (place.country || place.region || place.area) {
-          toast.success("Real place name added.", { autoClose: 2500 });
-        }
-        setDetectingLocation(false);
-      },
-      () => {
-        toast.error("Location was denied. Please type the area manually.", { autoClose: 3000 });
-        setDetectingLocation(false);
-      },
-      { enableHighAccuracy: false, timeout: 8000 },
-    );
-  };
 
   const openCreate = () => {
     if (atGroupLimit) {
@@ -90,35 +46,7 @@ const GroupsPage: FC = () => {
       );
       return;
     }
-    setCreateOpen(true);
-  };
-
-  const handleCreate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim()) {
-      toast.error("Group name is required.", { autoClose: 2500 });
-      return;
-    }
-    createGroup.mutate(
-      {
-        name: form.name.trim(),
-        area: form.area.trim() || undefined,
-        region: form.region.trim() || undefined,
-        country: form.country.trim() || undefined,
-        description: form.description.trim() || undefined,
-      },
-      {
-        onSuccess: (group) => {
-          setCreateOpen(false);
-          setForm({ name: "", area: "", region: "", country: "", description: "" });
-          setLocationLabel("");
-          toast.success("Group created.", { autoClose: 2500 });
-          navigate(`/groups/${group.id}`);
-        },
-        onError: (error) =>
-          toast.error(getApiErrorMessage(error, "Could not create the group"), { autoClose: 3000 }),
-      },
-    );
+    navigate("/create-group");
   };
 
   const handleAccept = (token: string) => {
@@ -260,90 +188,6 @@ const GroupsPage: FC = () => {
           ))}
         </div>
       )}
-
-      <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Create a group">
-        <form onSubmit={handleCreate} className="space-y-4">
-          <FormInput
-            type="text"
-            name="group-name"
-            value={form.name}
-            placeholder="Group name"
-            label="Group name"
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <div>
-<FormInput
-            type="text"
-            name="group-area"
-            value={form.area}
-            placeholder="Area (optional)"
-            label="Area"
-            onChange={(e) => setForm({ ...form, area: e.target.value })}
-          />
-          <div className="grid grid-cols-2 gap-3">
-            <FormInput
-              type="text"
-              name="group-region"
-              value={form.region}
-              placeholder="Region / county (optional)"
-              label="Region"
-              onChange={(e) => setForm({ ...form, region: e.target.value })}
-            />
-            <FormInput
-              type="text"
-              name="group-country"
-              value={form.country}
-              placeholder="Country (optional)"
-              label="Country"
-              onChange={(e) => setForm({ ...form, country: e.target.value })}
-            />
-          </div>
-          {locationLabel && (
-            <div className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
-              <span className="font-medium">Detected location: </span>
-              {locationLabel}
-            </div>
-          )}
-          <button
-            type="button"
-            onClick={handleUseMyLocation}
-            disabled={detectingLocation}
-            className="mt-0.5 inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:underline disabled:opacity-50 dark:text-blue-300"
-          >
-            {detectingLocation ? (
-              <>
-                <Spinner /> Requesting permission…
-              </>
-            ) : (
-              <>
-                <LucideIcon name="MapPin" size={13} /> Use my location (real place name)
-              </>
-            )}
-          </button>
-          </div>
-          <div className="w-full">
-            <label htmlFor="group-description" className="mb-1 block">
-              Description (optional)
-            </label>
-            <textarea
-              id="group-description"
-              className="w-full rounded-md border border-gray-300 px-4 py-2 outline-none dark:border-slate-500 dark:bg-blue-900 dark:text-white"
-              rows={3}
-              value={form.description}
-              placeholder="Why is this group? Who is it for?"
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-          </div>
-          <div className="flex justify-end gap-x-2">
-            <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={createGroup.isPending}>
-              {createGroup.isPending ? <Spinner /> : "Create"}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 };

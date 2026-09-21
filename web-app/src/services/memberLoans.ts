@@ -6,6 +6,7 @@ export type LoanApplicationStatus =
   | "under_review"
   | "approved"
   | "rejected"
+  | "cancelled"
   | "disbursed";
 
 export interface LoanTypeOption {
@@ -39,6 +40,8 @@ export interface MyLoanDetail extends MyLoanListItem {
   member: string;
   member_name: string;
   member_summary: unknown;
+  approved_amount?: string | null;
+  group?: number | null;
   employer?: string;
   payroll_number?: string;
   gross_salary?: string | null;
@@ -50,10 +53,12 @@ export interface MyLoanDetail extends MyLoanListItem {
   reviewed_by?: number | null;
   approved_by?: number | null;
   rejected_by?: number | null;
+  cancelled_by?: number | null;
   disbursed_by?: number | null;
   reviewed_at?: string | null;
   approved_at?: string | null;
   rejected_at?: string | null;
+  cancelled_at?: string | null;
   disbursed_at?: string | null;
   approval_notes?: string;
   rejection_reason?: string;
@@ -112,6 +117,9 @@ export interface MyLoanScheduleEntry {
   principal_due: string;
   interest_due: string;
   total_due: string;
+  partially_paid_amount: string;
+  outstanding_due: string;
+  status: string;
   is_paid: boolean;
   paid_at?: string | null;
 }
@@ -127,16 +135,40 @@ export interface MyLoanAccount {
   status_display: string;
   outstanding_principal: string;
   outstanding_interest: string;
+  outstanding_penalty: string;
   outstanding_balance: string;
   total_repayable: string;
+  total_outstanding: string;
+  next_installment?: {
+    installment_number: number;
+    due_date: string;
+    status: string;
+    amount_due: string;
+  } | null;
   interest_type: string;
   schedule: MyLoanScheduleEntry[];
   created_at: string;
 }
 
+export interface MyLoanBalance {
+  loan_number: string;
+  currency: string;
+  status: string;
+  outstanding_principal: string;
+  outstanding_interest: string;
+  outstanding_penalty: string;
+  total_outstanding: string;
+  next_installment: {
+    installment_number: number;
+    due_date: string;
+    amount_due: string;
+  } | null;
+}
+
 export interface RepayLoanPayload {
   account_number: string;
   installment_number: number;
+  amount?: string;
 }
 
 export interface EligibilityProduct {
@@ -210,6 +242,9 @@ export const memberLoansService = {
 
   getMyLoanAccount: (loanNumber: string) =>
     api.get(`/loans/me/accounts/${loanNumber}/`) as Promise<MyLoanAccount>,
+
+  getMyLoanBalance: (loanNumber: string) =>
+    api.get(`/loans/me/accounts/${loanNumber}/balance/`) as Promise<MyLoanBalance>,
 
   repayLoan: (loanNumber: string, data: RepayLoanPayload) =>
     api.post(`/loans/me/accounts/${loanNumber}/repay/`, data) as Promise<MyLoanAccount>,

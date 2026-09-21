@@ -338,3 +338,39 @@ class GroupRoleVote(models.Model):
 
     def __str__(self):
         return f"{self.voter} votes {self.candidate} for {self.role}"
+
+
+class GroupActivity(models.Model):
+    """Append-only activity timeline for a group workspace."""
+
+    class Type(models.TextChoices):
+        MEMBER_JOINED = "MEMBER_JOINED", "Member joined"
+        MEMBER_INVITED = "MEMBER_INVITED", "Member invited"
+        SHARE_PURCHASED = "SHARE_PURCHASED", "Share purchased"
+        CONTRIBUTION_RECORDED = "CONTRIBUTION_RECORDED", "Contribution recorded"
+        CONTRIBUTION_UPDATED = "CONTRIBUTION_UPDATED", "Contribution updated"
+        ROLE_CHANGED = "ROLE_CHANGED", "Role changed"
+
+    group = models.ForeignKey(
+        VikobaGroup,
+        on_delete=models.CASCADE,
+        related_name="activities",
+    )
+    actor = models.ForeignKey(
+        Member,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="group_activities",
+    )
+    event_type = models.CharField(max_length=40, choices=Type.choices)
+    title = models.CharField(max_length=160)
+    description = models.TextField(blank=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"{self.group} - {self.title}"

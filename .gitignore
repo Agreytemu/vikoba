@@ -33,3 +33,12 @@ venv/
 
 # local backups (may contain DB dumps & secrets)
 backups/
+
+# Local/runtime files
+.servers/
+backend/server.err
+whatsapp-bridge/*.err
+whatsapp-bridge/local-qr.png
+whatsapp-bridge/local-qr.txt
+whatsapp-bridge/qr-status.txt
+whatsapp-bridge/watch-qr.js

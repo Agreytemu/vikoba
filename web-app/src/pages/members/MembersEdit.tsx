@@ -522,7 +522,7 @@ const MembersEdit = () => {
                     <FormLabel>Country</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder="Kenya"
+                        placeholder="Tanzania"
                         {...field}
                         className="!focus-visible:ring-0 !focus-visible:ring-offset-0"
                       />
@@ -690,7 +690,7 @@ const MembersEdit = () => {
                           type="number"
                           min="0"
                           step="0.01"
-                          placeholder="KES 100,000"
+                          placeholder="TZS 100,000"
                           {...field}
                         />
                       </FormControl>

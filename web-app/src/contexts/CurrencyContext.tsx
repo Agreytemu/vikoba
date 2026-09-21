@@ -38,6 +38,9 @@ interface CurrencyContextValue {
   requestDetection: () => void;
   dismissPrompt: () => void;
   setCurrencyManual: (code: string) => void;
+  /** Applies the member's onboarding currency choice (TZS/USD). An explicit
+   *  manual picker choice always wins and is never overridden. */
+  syncFromProfile: (code: string | null | undefined) => void;
   openPicker: () => void;
   closePicker: () => void;
   pickerOpen: boolean;
@@ -144,6 +147,27 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     [],
   );
 
+  // Member's onboarding currency choice (TZS/USD) wins over geo/IP detection.
+  // Runs off already-loaded profile data so guests never trigger extra calls.
+  const syncFromProfile = useCallback((code: string | null | undefined) => {
+    if (code !== "TZS" && code !== "USD") return;
+    try {
+      if (loadStored()?.source === "manual") return;
+    } catch {
+      // fall through and apply
+    }
+    const meta =
+      code === "TZS"
+        ? { countryCode: "TZ", countryName: "Tanzania" }
+        : { countryCode: "US", countryName: "United States" };
+    setState((prev) => {
+      if (prev.currency === code && prev.source === "profile") return prev;
+      return { currency: code, ...meta, source: "profile" };
+    });
+    setCurrency(code);
+    store({ currency: code, ...meta, source: "profile" }, "profile");
+  }, []);
+
   // Kick off detection only once, when the app shell mounts: if the browser
   // already granted permission we detect silently; if it needs the prompt we
   // surface the friendly Dashboard card; if it is denied we fall back to IP.
@@ -189,11 +213,12 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       requestDetection,
       dismissPrompt,
       setCurrencyManual,
+      syncFromProfile,
       openPicker: () => setPickerOpen(true),
       closePicker: () => setPickerOpen(false),
       pickerOpen,
     }),
-    [state, promptState, formatMoney, requestDetection, dismissPrompt, setCurrencyManual, pickerOpen],
+    [state, promptState, formatMoney, requestDetection, dismissPrompt, setCurrencyManual, syncFromProfile, pickerOpen],
   );
 
   return (

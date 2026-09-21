@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { Check, ChevronLeft, ChevronRight, Smartphone, ShieldCheck, CreditCard, UserRound } from "lucide-react";
 
 import { Auth } from "@/contexts/AuthContext";
+import { useCurrency } from "@/contexts/CurrencyContext";
 import {
   useGetMyMemberProfile,
   useGetMyKycDocuments,
@@ -101,6 +102,7 @@ const Onboarding: FC = () => {
   const createNextOfKin = useCreateNextOfKin();
   const onboarding = useOnboarding();
   const submitForReview = useSubmitForReview();
+  const { syncFromProfile } = useCurrency();
 
   const [step, setStep] = useState(1);
   const [finishing, setFinishing] = useState(false);
@@ -108,7 +110,6 @@ const Onboarding: FC = () => {
   const [otpPhone, setOtpPhone] = useState("");
   const [otpCode, setOtpCode] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
-  const [otpChannel, setOtpChannel] = useState<string | null>(null);
   const [otpSending, setOtpSending] = useState(false);
 
   const [form, setForm] = useState<FormState>({
@@ -210,13 +211,10 @@ const Onboarding: FC = () => {
     try {
       const result = await requestOtp(otpPhone);
       setDevCode(result.dev_mode && result.dev_code ? result.dev_code : null);
-      setOtpChannel(result.channel ?? null);
-      if (result.channel === "whatsapp") {
-        toast.success("Code sent to your WhatsApp.", { autoClose: 3000 });
-      } else if (result.dev_mode && result.dev_code) {
+      if (result.dev_mode && result.dev_code) {
         toast.info("Verification code sent (demo mode shows it below).", { autoClose: 3000 });
       } else {
-        toast.success("Verification code sent to your phone.", { autoClose: 2000 });
+        toast.success("Verification code sent to your phone by SMS.", { autoClose: 2000 });
       }
     } catch (error) {
       toast.error(getApiErrorMessage(error, "Could not send code"), { autoClose: 3000 });
@@ -271,6 +269,8 @@ const Onboarding: FC = () => {
         selected_plan: form.selected_plan,
       };
       await onboarding.mutateAsync(payload);
+      // From now on every amount inside the app uses the member's own choice.
+      syncFromProfile(form.preferred_currency);
       // Kick off the staff KYC review pipeline automatically, best-effort.
       if (!profile?.verification?.submitted) {
         try {
@@ -457,16 +457,9 @@ const Onboarding: FC = () => {
                     onClick={handleSendOtp}
                     className="w-full rounded-xl border border-[#115036]/30 bg-[#EEF6F0] px-4 py-2.5 text-[14px] font-medium text-[#115036] hover:bg-[#E2F0E7] disabled:opacity-60"
                   >
-                    {otpSending ? "Sending..." : "Send verification code"}
+                    {otpSending ? "Sending..." : "Send verification code by SMS"}
                   </button>
 
-                  {otpChannel === "whatsapp" && (
-                    <div className="flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                      <span>
-                        The code was sent as a WhatsApp message. Check WhatsApp on {otpPhone} and enter it below.
-                      </span>
-                    </div>
-                  )}
                   {devCode && (
                     <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
                       Demo mode — use this code:{" "}

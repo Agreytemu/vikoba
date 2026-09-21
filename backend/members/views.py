@@ -17,6 +17,7 @@ from .serializers import (
     VerificationStatusSerializer,
 )
 from users.permissions import HasMemberAccess
+from payments.utils.phone import detect_network
 
 
 class MemberViewSet(
@@ -190,15 +191,6 @@ class MemberMePhoneOTPRequestView(generics.GenericAPIView):
         if settings.OTP_DEV_MODE:
             data["dev_code"] = otp.code
 
-        # Prefer WhatsApp when a primary admin device is paired; else fall back
-        # to the existing SMS path (silently when no gateway is configured).
-        if settings.WHATSAPP_BRIDGE_URL:
-            from whatsapp.service import deliver_otp
-
-            channel = deliver_otp(member, phone_number, otp.code)
-            if channel == "whatsapp":
-                data["channel"] = "whatsapp"
-
         return Response(data)
 
 
@@ -241,8 +233,17 @@ class MemberMePhoneOTPVerifyView(generics.GenericAPIView):
         otp.save(update_fields=["is_used"])
         member.phone_number = phone_number
         member.phone_verified = True
+        member.phone_network = detect_network(phone_number)
         member.refresh_verification()
-        member.save(update_fields=["phone_number", "phone_verified", "is_verified", "updated_at"])
+        member.save(
+            update_fields=[
+                "phone_number",
+                "phone_verified",
+                "phone_network",
+                "is_verified",
+                "updated_at",
+            ]
+        )
         return Response(VerificationStatusSerializer(member).data)
 
 
@@ -333,4 +334,21 @@ class MemberMeOnboardingView(generics.GenericAPIView):
         if not member.country:
             member.country = "Tanzania"
         member.save()
+
+        # Every member gets their own savings account automatically, so they can
+        # deposit/withdraw from their wallet without waiting for staff.
+        from accounts.models import SavingsAccount, SavingsProduct
+        product, _ = SavingsProduct.objects.get_or_create(
+            code="BASIC",
+            defaults={
+                "name": "Basic Savings",
+                "minimum_balance": 0,
+                "interest_rate": 0,
+                "withdrawal_fee": 0,
+                "allows_withdrawals": True,
+                "is_active": True,
+            },
+        )
+        SavingsAccount.objects.get_or_create(member=member, product=product)
+
         return Response(MeMemberSerializer(member).data)

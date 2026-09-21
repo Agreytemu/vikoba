@@ -16,6 +16,8 @@
     "sms": "短信",
     "emails": "电子邮件",
     "whatsapp": "WhatsApp",
+    "deposit": "存款",
+    "withdraw": "取款",
     "logout": "退出"
   },
   "common": {

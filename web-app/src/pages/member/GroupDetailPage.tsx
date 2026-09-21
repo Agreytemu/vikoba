@@ -1,585 +1,1324 @@
-import { FC, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+
+import { FC, ReactNode, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 
 import Spinner from "@/components/Spinner";
 import { SkeletonPage } from "@/components/Skeleton";
 import LucideIcon from "@/components/LucideIcon";
 import { Button } from "@/components/ui/button";
-import FormInput from "@/components/FormInput";
+import { Badge } from "@/components/ui/badge";
 import {
-  useAddContribution,
-  useBuyShares,
-  useCloseCommittee,
-  useDeclareCandidacy,
-  useGetCommittee,
+  GroupActivity,
+  GroupContribution,
+  GroupLedgerEntry,
+  GroupLoanProjection,
+  GroupMembershipInfo,
+  GroupRepaymentProjection,
+  GroupWorkspaceOverview,
+} from "@/services/groups";
+import {
+  useGetGroupActivity,
+  useGetGroupLedger,
+  useGetGroupLoans,
+  useGetGroupMembers,
+  useGetGroupOverview,
+  useGetGroupRepayments,
   useGetContributions,
-  useGetGroup,
   useInviteToGroup,
-  useVoteCommittee,
 } from "@/hooks/api/groups";
-import { useGetMyMemberProfile } from "@/hooks/api/memberSelf";
+import {
+  useInitiateContributionPayment,
+  useMyPaymentStatus,
+} from "@/hooks/api/memberPayments";
 import { useCurrency } from "@/contexts/CurrencyContext";
 import { getApiErrorMessage } from "@/lib/utils";
-import { formatPlace } from "@/lib/geo";
-import WhatsAppConnectModal from "@/components/whatsapp/WhatsAppConnectModal";
-import { useGetWhatsAppSessions } from "@/hooks/api/whatsapp";
+
+type TabKey =
+  | "overview"
+  | "members"
+  | "contributions"
+  | "loans"
+  | "repayments"
+  | "ledger"
+  | "activity";
+
+const tabs: { key: TabKey; label: string; icon: string }[] = [
+  { key: "overview", label: "Overview", icon: "LayoutDashboard" },
+  { key: "members", label: "Members", icon: "UsersRound" },
+  { key: "contributions", label: "Contributions", icon: "ReceiptText" },
+  { key: "loans", label: "Loans", icon: "HandCoins" },
+  { key: "repayments", label: "Repayments", icon: "BadgeDollarSign" },
+  { key: "ledger", label: "Ledger", icon: "BookOpenText" },
+  { key: "activity", label: "Activity", icon: "History" },
+];
 
 const CURRENT_MONTH = new Date().toISOString().slice(0, 7);
 
-const STATUS_STYLES: Record<string, string> = {
-  PENDING: "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
-  CONFIRMED: "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
-  REJECTED: "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300",
+const statusClass = (status?: string) => {
+  const value = (status || "").toUpperCase();
+
+  if (
+    [
+      "CONFIRMED",
+      "SUCCESS",
+      "POSTED",
+      "PAID",
+      "ACTIVE",
+      "DISBURSED",
+      "RECORDED",
+    ].includes(value)
+  ) {
+    return "bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 border-transparent";
+  }
+
+  if (
+    ["PENDING", "PROCESSING", "SUBMITTED", "UNDER_REVIEW", "DUE"].includes(
+      value,
+    )
+  ) {
+    return "bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border-transparent";
+  }
+
+  if (
+    [
+      "REJECTED",
+      "FAILED",
+      "VOIDED",
+      "EXPIRED",
+      "CANCELLED",
+      "DEFAULTED",
+    ].includes(value)
+  ) {
+    return "bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border-transparent";
+  }
+
+  return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-transparent";
 };
+
+const memberName = (
+  member?: {
+    first_name?: string;
+    last_name?: string;
+    membership_number?: string;
+  } | null,
+) => {
+  if (!member) return "Unknown member";
+
+  const name = `${member.first_name || ""} ${member.last_name || ""}`.trim();
+
+  return name || member.membership_number || "Unknown member";
+};
+
+const EmptyState = ({
+  icon,
+  title,
+  body,
+}: {
+  icon: string;
+  title: string;
+  body: string;
+}) => (
+  <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-10 text-center dark:border-slate-700 dark:bg-slate-900">
+    <LucideIcon
+      name={icon}
+      size={34}
+      className="mx-auto text-slate-400"
+    />
+    <p className="mt-3 font-medium">{title}</p>
+    <p className="mx-auto mt-1 max-w-md text-sm text-slate-500 dark:text-slate-400">
+      {body}
+    </p>
+  </div>
+);
+
+const ErrorState = ({ message }: { message: string }) => (
+  <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-5 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+    {message}
+  </div>
+);
+
+const SearchInput = ({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) => (
+  <div className="relative min-w-0 flex-1">
+    <LucideIcon
+      name="Search"
+      size={16}
+      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+    />
+    <input
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm outline-none transition focus:border-blue-600 focus:ring-2 focus:ring-blue-700/10 dark:border-slate-800 dark:bg-slate-950"
+    />
+  </div>
+);
+
+const Metric = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) => (
+  <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/70">
+    <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+      {label}
+    </p>
+    <p className="mt-1 truncate font-display text-lg font-semibold">
+      {value}
+    </p>
+  </div>
+);
+
+const Panel = ({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: string;
+  children: ReactNode;
+}) => (
+  <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900">
+    <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-semibold">
+      <LucideIcon name={icon} size={18} />
+      {title}
+    </h2>
+    {children}
+  </section>
+);
 
 const GroupDetailPage: FC = () => {
   const { groupId } = useParams();
-  const navigate = useNavigate();
   const { formatMoney } = useCurrency();
 
-  const { data: group, isLoading, isError } = useGetGroup(groupId);
-  const { data: contributions } = useGetContributions(groupId);
-  const { data: committee } = useGetCommittee(groupId);
-  const { data: myMember } = useGetMyMemberProfile();
-  const isVerified = Boolean(myMember?.is_verified);
-
-  const buyShares = useBuyShares(groupId);
-  const invite = useInviteToGroup();
-  const addContribution = useAddContribution(groupId);
-  const declare = useDeclareCandidacy(groupId);
-  const vote = useVoteCommittee(groupId);
-  const closeVoting = useCloseCommittee(groupId);
-
-  const [sharesForm, setSharesForm] = useState({ quantity: "1", amount: "" });
-  const [contributionForm, setContributionForm] = useState({
+  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberRole, setMemberRole] = useState("");
+  const [contributionSearch, setContributionSearch] = useState("");
+  const [contributionStatus, setContributionStatus] = useState("");
+  const [loanSearch, setLoanSearch] = useState("");
+  const [loanStatus, setLoanStatus] = useState("");
+  const [ledgerSearch, setLedgerSearch] = useState("");
+  const [ledgerStatus, setLedgerStatus] = useState("");
+  const [selectedLedger, setSelectedLedger] =
+    useState<GroupLedgerEntry | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [paymentReference, setPaymentReference] = useState("");
+  const [paymentForm, setPaymentForm] = useState({
     amount: "",
     month: CURRENT_MONTH,
-    reference: "",
+    phone: "",
   });
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [whatsappOpen, setWhatsappOpen] = useState(false);
-  const { data: waSessions } = useGetWhatsAppSessions(Boolean(groupId));
-  const groupDevice = waSessions?.find((s) => s.group === Number(groupId));
 
-  const handleBuyShares = (e: React.FormEvent) => {
-    e.preventDefault();
-    const quantity = Number(sharesForm.quantity);
-    if (!Number.isInteger(quantity) || quantity < 1) {
-      toast.error("Enter how many hisa you want to buy.", { autoClose: 2500 });
+  const overview = useGetGroupOverview(groupId);
+
+  const members = useGetGroupMembers(groupId, {
+    search: memberSearch,
+    role: memberRole,
+    page_size: 30,
+  });
+
+  const contributions = useGetContributions(groupId, {
+    search: contributionSearch,
+    status: contributionStatus,
+    page_size: 30,
+  });
+
+  const loans = useGetGroupLoans(groupId, {
+    search: loanSearch,
+    status: loanStatus,
+    page_size: 30,
+  });
+
+  const repayments = useGetGroupRepayments(groupId, {
+    page_size: 30,
+  });
+
+  const ledger = useGetGroupLedger(groupId, {
+    search: ledgerSearch,
+    status: ledgerStatus,
+    page_size: 30,
+  });
+
+  const activity = useGetGroupActivity(groupId, {
+    page_size: 30,
+  });
+
+  const invite = useInviteToGroup();
+
+  const contributionPayment = useInitiateContributionPayment();
+
+  const paymentStatus = useMyPaymentStatus(
+    paymentReference,
+    Boolean(paymentReference),
+  );
+
+  const group = overview.data?.group;
+  const permissions = overview.data?.permissions;
+
+  const headerPlace = useMemo(
+    () =>
+      [group?.area, group?.region, group?.country]
+        .filter(Boolean)
+        .join(", "),
+    [group],
+  );
+
+  const submitContributionPayment = () => {
+    if (!groupId || !paymentForm.amount || Number(paymentForm.amount) <= 0) {
+      toast.error("Enter a valid contribution amount.");
       return;
     }
-    buyShares.mutate(
-      { quantity, amount_paid: sharesForm.amount || "0" },
-      {
-        onSuccess: () => {
-          toast.success(`Bought ${quantity} hisa.`, { autoClose: 2500 });
-          setSharesForm({ quantity: "1", amount: "" });
-        },
-        onError: (error) =>
-          toast.error(getApiErrorMessage(error, "Could not buy hisa"), { autoClose: 3000 }),
-      },
-    );
-  };
 
-  const handleInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inviteEmail.trim()) return;
-    invite.mutate(
-      { groupId: groupId!, email: inviteEmail.trim() },
+    contributionPayment.mutate(
       {
-        onSuccess: () => {
-          toast.success("Invitation sent by email.", { autoClose: 2500 });
-          setInviteEmail("");
-        },
-        onError: (error) =>
-          toast.error(getApiErrorMessage(error, "Could not send the invitation"), {
-            autoClose: 3000,
-          }),
+        group_id: Number(groupId),
+        amount: paymentForm.amount,
+        month: paymentForm.month,
+        phone: paymentForm.phone || undefined,
       },
-    );
-  };
+      {
+        onSuccess: (tx) => {
+          setPaymentReference(tx.reference);
 
-  const handleContribute = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!contributionForm.amount || Number(contributionForm.amount) <= 0) {
-      toast.error("Enter the contribution amount.", { autoClose: 2500 });
-      return;
-    }
-    addContribution.mutate(
-      {
-        amount: contributionForm.amount,
-        month: contributionForm.month,
-        reference: contributionForm.reference.trim() || undefined,
-      },
-      {
-        onSuccess: () => {
-          toast.success("Contribution recorded. It will show as pending until staff confirm it.", {
-            autoClose: 3500,
+          toast.success(
+            "Payment request initiated. It will stay pending until confirmed by the provider.",
+          );
+
+          setPaymentForm({
+            amount: "",
+            month: CURRENT_MONTH,
+            phone: "",
           });
-          setContributionForm({ amount: "", month: CURRENT_MONTH, reference: "" });
         },
+
         onError: (error) =>
-          toast.error(getApiErrorMessage(error, "Could not record the contribution"), {
-            autoClose: 3000,
-          }),
+          toast.error(
+            getApiErrorMessage(
+              error,
+              "Could not initiate contribution payment.",
+            ),
+          ),
       },
     );
   };
 
-  const handleDeclare = (role: string) => {
-    declare.mutate(role, {
-      onSuccess: () => toast.success("You're now a candidate for this role.", { autoClose: 2500 }),
-      onError: (error) =>
-        toast.error(getApiErrorMessage(error, "Could not declare interest"), { autoClose: 3000 }),
-    });
-  };
+  const submitInvite = () => {
+    if (!groupId || !inviteEmail.trim()) return;
 
-  const handleVote = (role: string, candidate_id: string, candidateName: string) => {
-    vote.mutate(
-      { role, candidate_id },
+    invite.mutate(
       {
-        onSuccess: () =>
-          toast.success(`Your vote for ${candidateName} is recorded.`, { autoClose: 2500 }),
+        groupId,
+        email: inviteEmail.trim(),
+      },
+      {
+        onSuccess: () => {
+          toast.success("Invitation sent.");
+          setInviteEmail("");
+          overview.refetch();
+          activity.refetch();
+        },
+
         onError: (error) =>
-          toast.error(getApiErrorMessage(error, "Could not record your vote"), { autoClose: 3000 }),
+          toast.error(
+            getApiErrorMessage(error, "Could not send invitation."),
+          ),
       },
     );
   };
 
-  const handleClose = (role: string) => {
-    closeVoting.mutate(role, {
-      onSuccess: (result) =>
-        toast.success(
-          `Voting closed. ${result.member?.first_name ?? "The winner"} is now ${result.role === "TREASURER" ? "treasurer" : "secretary"}.`,
-          { autoClose: 3500 },
-        ),
-      onError: (error) =>
-        toast.error(getApiErrorMessage(error, "Could not close voting"), { autoClose: 3000 }),
-    });
-  };
-
-  if (isLoading) {
+  if (overview.isLoading) {
     return <SkeletonPage />;
   }
 
-  if (isError || !group) {
+  if (overview.isError || !overview.data || !group) {
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 py-16 text-center">
-        <LucideIcon name="CircleAlert" size={36} className="mx-auto text-slate-400" />
-        <h1 className="mt-3 font-display text-xl font-semibold">Group unavailable</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          You may not be a member of this group, or it doesn't exist.
-        </p>
-        <Button type="button" variant="outline" className="mt-5" onClick={() => navigate("/groups")}>
+      <div className="mx-auto max-w-4xl">
+        <ErrorState message="Unable to load this group. You may not have access or the group no longer exists." />
+
+        <Link
+          className="mt-4 inline-flex text-sm font-medium text-blue-700 hover:underline dark:text-blue-300"
+          to="/groups"
+        >
           Back to groups
-        </Button>
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6">
-      <Link
-        to="/groups"
-        className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-      >
-        <LucideIcon name="ArrowLeft" size={16} /> My Groups
-      </Link>
+    <div className="mx-auto w-full max-w-7xl space-y-5">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <Link
+              className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-blue-700 hover:underline dark:text-blue-300"
+              to="/groups"
+            >
+              <LucideIcon name="ChevronLeft" size={16} />
+              Groups
+            </Link>
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 font-display text-2xl font-semibold">
-            {group.name}
-          </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-            {(group.area || group.region || group.country) && (
-              <span className="inline-flex items-center gap-1">
-                <LucideIcon name="MapPin" size={14} />{" "}
-                {formatPlace({
-                  area: group.area,
-                  region: group.region,
-                  country: group.country,
-                })}
-              </span>
-            )}
-            <span>{group.member_count} members</span>
-            <span>Total hisa: {group.total_shares}</span>
-          </p>
-          {group.description && (
-            <p className="mt-2 max-w-xl text-sm text-slate-600 dark:text-slate-300">
-              {group.description}
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="font-display text-2xl font-semibold sm:text-3xl">
+                {group.name}
+              </h1>
+
+              <Badge className={statusClass(group.status)}>
+                {group.status}
+              </Badge>
+            </div>
+
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              {group.code}
+              {headerPlace ? ` · ${headerPlace}` : ""}
             </p>
+
+            {group.description ? (
+              <p className="mt-3 max-w-3xl text-sm text-slate-600 dark:text-slate-300">
+                {group.description}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:min-w-[520px]">
+            <Metric label="Members" value={group.member_count} />
+            <Metric label="Your role" value={group.my_role} />
+            <Metric label="Total hisa" value={group.total_shares} />
+            <Metric
+              label="Pending"
+              value={overview.data.pending_items.pending_contributions}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-card dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex min-w-max gap-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm font-medium transition ${
+                activeTab === tab.key
+                  ? "bg-blue-700 text-white"
+                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+              }`}
+            >
+              <LucideIcon name={tab.icon} size={16} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === "overview" && (
+        <OverviewTab
+          overview={overview.data}
+          formatMoney={formatMoney}
+          onOpenLedger={(entry) => {
+            setSelectedLedger(entry);
+            setActiveTab("ledger");
+          }}
+        />
+      )}
+
+      {activeTab === "members" && (
+        <MembersTab
+          members={members.data?.results ?? []}
+          isLoading={members.isLoading}
+          isError={members.isError}
+          search={memberSearch}
+          setSearch={setMemberSearch}
+          role={memberRole}
+          setRole={setMemberRole}
+          inviteEmail={inviteEmail}
+          setInviteEmail={setInviteEmail}
+          submitInvite={submitInvite}
+          canInvite={Boolean(permissions?.can_invite)}
+        />
+      )}
+
+      {activeTab === "contributions" && (
+        <ContributionsTab
+          rows={contributions.data?.results ?? []}
+          isLoading={contributions.isLoading}
+          isError={contributions.isError}
+          search={contributionSearch}
+          setSearch={setContributionSearch}
+          statusFilter={contributionStatus}
+          setStatusFilter={setContributionStatus}
+          paymentForm={paymentForm}
+          setPaymentForm={setPaymentForm}
+          submitPayment={submitContributionPayment}
+          isSubmitting={contributionPayment.isPending}
+          paymentStatus={paymentStatus.data?.status}
+          formatMoney={formatMoney}
+        />
+      )}
+
+      {activeTab === "loans" && (
+        <LoansTab
+          rows={loans.data?.results ?? []}
+          isLoading={loans.isLoading}
+          isError={loans.isError}
+          search={loanSearch}
+          setSearch={setLoanSearch}
+          statusFilter={loanStatus}
+          setStatusFilter={setLoanStatus}
+          formatMoney={formatMoney}
+        />
+      )}
+
+      {activeTab === "repayments" && (
+        <RepaymentsTab
+          rows={repayments.data?.results ?? []}
+          isLoading={repayments.isLoading}
+          isError={repayments.isError}
+          formatMoney={formatMoney}
+        />
+      )}
+
+      {activeTab === "ledger" && (
+        <LedgerTab
+          rows={ledger.data?.results ?? []}
+          isLoading={ledger.isLoading}
+          isError={ledger.isError}
+          search={ledgerSearch}
+          setSearch={setLedgerSearch}
+          statusFilter={ledgerStatus}
+          setStatusFilter={setLedgerStatus}
+          selected={selectedLedger}
+          setSelected={setSelectedLedger}
+          formatMoney={formatMoney}
+        />
+      )}
+
+      {activeTab === "activity" && (
+        <ActivityTab
+          rows={activity.data?.results ?? []}
+          isLoading={activity.isLoading}
+          isError={activity.isError}
+        />
+      )}
+    </div>
+  );
+};
+
+const OverviewTab = ({
+  overview,
+  formatMoney,
+  onOpenLedger,
+}: {
+  overview: GroupWorkspaceOverview;
+  formatMoney: (amount: number) => string;
+  onOpenLedger: (entry: GroupLedgerEntry) => void;
+}) => (
+  <div className="grid gap-5 xl:grid-cols-[minmax(0,1.3fr)_minmax(360px,0.7fr)]">
+    <section className="space-y-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Metric
+          label="Confirmed contributions"
+          value={formatMoney(
+            Number(overview.contribution_summary.confirmed_amount || 0),
           )}
-        </div>
-        <div className="text-right">
-          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-            Your hisa: {group.my_shares}
-          </span>
-        </div>
+        />
+
+        <Metric
+          label="Pending contributions"
+          value={formatMoney(
+            Number(overview.contribution_summary.pending_amount || 0),
+          )}
+        />
+
+        <Metric
+          label="Active loans"
+          value={overview.loan_summary.active_count}
+        />
+
+        <Metric
+          label="Outstanding loans"
+          value={formatMoney(
+            Number(overview.loan_summary.outstanding_total || 0),
+          )}
+        />
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
-        {/* Members */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-2 dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-            <LucideIcon name="Users" size={16} /> Members
-          </h2>
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {group.members.map((membership) => {
-              const initials = `${membership.member.first_name?.[0] ?? ""}${membership.member.last_name?.[0] ?? ""}`;
-              return (
-                <li key={membership.id} className="flex items-center gap-3 py-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-800 dark:bg-blue-950/50 dark:text-blue-200">
-                    {initials || "•"}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">
-                      {membership.member.first_name} {membership.member.last_name}
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {membership.member.membership_number}
-                    </p>
-                  </div>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    hisa: {membership.shares_count}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+      <Panel title="Recent transactions" icon="BookOpenText">
+        {overview.recent_ledger.length === 0 ? (
+          <EmptyState
+            icon="BookOpenText"
+            title="No ledger entries yet"
+            body="Contributions, shares, loans and share-outs will appear here as records are created."
+          />
+        ) : (
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {overview.recent_ledger.map((entry) => (
+              <button
+                key={entry.id}
+                type="button"
+                onClick={() => onOpenLedger(entry)}
+                className="flex w-full items-center justify-between gap-3 py-3 text-left"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium">
+                    {entry.transaction_type}
+                  </p>
 
-        {/* Actions */}
-        <section className="space-y-4">
-          {/* Invite */}
-          <form onSubmit={handleInvite} className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <LucideIcon name="UserPlus" size={16} /> Invite by email
-            </h2>
-            <FormInput
-              type="email"
-              name="invite-email"
-              value={inviteEmail}
-              placeholder="friend@example.com"
-              onChange={(e) => setInviteEmail(e.target.value)}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              className="mt-3 w-full"
-            >
-              <LucideIcon name="Send" size={14} className="mr-1" />
-              Send invitation
-            </Button>
-          </form>
+                  <p className="truncate text-xs text-slate-500">
+                    {memberName(entry.member)} ·{" "}
+                    {entry.reference || "No reference"}
+                  </p>
+                </div>
 
-          {/* Buy hisa */}
-          <form onSubmit={handleBuyShares} className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <LucideIcon name="Coins" size={16} /> Buy hisa
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              <FormInput
-                type="number"
-                name="shares-quantity"
-                value={sharesForm.quantity}
-                label="Quantity"
-                onChange={(e) => setSharesForm({ ...sharesForm, quantity: e.target.value })}
-              />
-              <FormInput
-                type="number"
-                name="shares-amount"
-                value={sharesForm.amount}
-                placeholder="Amount paid"
-                label="Amount paid"
-                onChange={(e) => setSharesForm({ ...sharesForm, amount: e.target.value })}
-              />
-            </div>
-            <Button
-              type="submit"
-              size="sm"
-              className="mt-3 w-full"
-              disabled={buyShares.isPending}
-            >
-              {buyShares.isPending ? (
-                <Spinner />
-              ) : (
-                <>
-                  <LucideIcon name="ShoppingCart" size={14} className="mr-1" />
-                  Buy hisa
-                </>
-              )}
-            </Button>
-          </form>
+                <div className="text-right">
+                  <p className="font-display font-semibold">
+                    {formatMoney(Number(entry.amount || 0))}
+                  </p>
 
-          {/* Contribute */}
-          <form onSubmit={handleContribute} className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold">
-              <LucideIcon name="Wallet" size={16} /> Contribute
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              <FormInput
-                type="number"
-                name="contrib-amount"
-                value={contributionForm.amount}
-                placeholder="Amount"
-                label="Amount"
-                onChange={(e) => setContributionForm({ ...contributionForm, amount: e.target.value })}
-              />
-              <FormInput
-                type="month"
-                name="contrib-month"
-                value={contributionForm.month}
-                label="Month"
-                onChange={(e) => setContributionForm({ ...contributionForm, month: e.target.value })}
-              />
-            </div>
-            <FormInput
-              type="text"
-              name="contrib-reference"
-              value={contributionForm.reference}
-              placeholder="Reference (optional)"
-              className="mt-3"
-              onChange={(e) => setContributionForm({ ...contributionForm, reference: e.target.value })}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              variant="secondary"
-              className="mt-3 w-full"
-              disabled={addContribution.isPending}
-            >
-              {addContribution.isPending ? <Spinner /> : "Record contribution"}
-            </Button>
-          </form>
-        </section>
+                  <Badge className={statusClass(entry.status)}>
+                    {entry.status}
+                  </Badge>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </Panel>
+    </section>
+
+    <section className="space-y-5">
+      <Panel title="Pending items" icon="CircleAlert">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+          <Metric
+            label="Pending contributions"
+            value={overview.pending_items.pending_contributions}
+          />
+
+          <Metric
+            label="Pending invitations"
+            value={overview.pending_items.pending_invitations}
+          />
+        </div>
+      </Panel>
+
+      <Panel title="Recent activity" icon="History">
+        <ActivityList rows={overview.recent_activity} />
+      </Panel>
+    </section>
+  </div>
+);
+
+const MembersTab = ({
+  members,
+  isLoading,
+  isError,
+  search,
+  setSearch,
+  role,
+  setRole,
+  inviteEmail,
+  setInviteEmail,
+  submitInvite,
+  canInvite,
+}: {
+  members: GroupMembershipInfo[];
+  isLoading: boolean;
+  isError: boolean;
+  search: string;
+  setSearch: (value: string) => void;
+  role: string;
+  setRole: (value: string) => void;
+  inviteEmail: string;
+  setInviteEmail: (value: string) => void;
+  submitInvite: () => void;
+  canInvite: boolean;
+}) => (
+  <Panel title="Members" icon="UsersRound">
+    <div className="mb-4 flex flex-col gap-2 lg:flex-row">
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Search by name or member ID"
+      />
+
+      <select
+        value={role}
+        onChange={(event) => setRole(event.target.value)}
+        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+      >
+        <option value="">All roles</option>
+        <option value="CHAIRPERSON">Chairperson</option>
+        <option value="TREASURER">Treasurer</option>
+        <option value="SECRETARY">Secretary</option>
+        <option value="MEMBER">Member</option>
+      </select>
+    </div>
+
+    {canInvite && (
+      <div className="mb-5 flex flex-col gap-2 rounded-2xl bg-slate-50 p-3 dark:bg-slate-950 sm:flex-row">
+        <input
+          value={inviteEmail}
+          onChange={(event) => setInviteEmail(event.target.value)}
+          placeholder="Invite by email"
+          className="h-10 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-900"
+        />
+
+        <Button type="button" onClick={submitInvite}>
+          <LucideIcon name="MailPlus" size={16} className="mr-1" />
+          Invite
+        </Button>
       </div>
+    )}
 
-      {/* Committee */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-          <LucideIcon name="Crown" size={16} /> Committee
-        </h2>
+    {isLoading ? (
+      <Spinner />
+    ) : isError ? (
+      <ErrorState message="Unable to load group members." />
+    ) : members.length === 0 ? (
+      <EmptyState
+        icon="UsersRound"
+        title="No members found"
+        body="Try adjusting your search or filters."
+      />
+    ) : (
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {members.map((item) => (
+          <div
+            key={item.id}
+            className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"
+          >
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 font-semibold text-blue-800 dark:bg-blue-950 dark:text-blue-200">
+                {memberName(item.member).slice(0, 2).toUpperCase()}
+              </div>
 
-        <div className="mb-5 grid gap-3 sm:grid-cols-3">
-          {(
-            [
-              ["Chairperson", "Crown", committee?.chairperson],
-              ["Treasurer", "PiggyBank", committee?.treasurer],
-              ["Secretary", "ClipboardList", committee?.secretary],
-            ] as const
-          ).map(([label, icon, person]) => (
-            <div
-              key={label}
-              className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 dark:border-slate-800 dark:bg-slate-800/40"
-            >
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
-                <LucideIcon name={icon} size={16} />
-              </span>
-              <div className="min-w-0">
-                <p className="text-xs text-slate-500 dark:text-slate-400">{label}</p>
-                <p className="truncate text-sm font-medium">
-                  {person
-                    ? `${person.first_name} ${person.last_name}`
-                    : label === "Chairperson"
-                      ? group.created_by?.first_name && group.created_by?.last_name
-                        ? `${group.created_by.first_name} ${group.created_by.last_name}`
-                        : "—"
-                      : "Not elected yet"}
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-medium">
+                  {memberName(item.member)}
                 </p>
+
+                <p className="text-xs text-slate-500">
+                  {item.member.membership_number}
+                </p>
+              </div>
+
+              <Badge className={statusClass(item.role)}>
+                {item.role}
+              </Badge>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+              <Metric label="Hisa" value={item.shares_count} />
+
+              <Metric
+                label="Status"
+                value={item.is_active ? "Active" : "Inactive"}
+              />
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Badge
+                className={statusClass(
+                  item.is_verified ? "CONFIRMED" : "PENDING",
+                )}
+              >
+                {item.is_verified ? "Verified" : "Unverified"}
+              </Badge>
+
+              {item.member_status ? (
+                <Badge variant="outline">{item.member_status}</Badge>
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </Panel>
+);
+
+const ContributionsTab = ({
+  rows,
+  isLoading,
+  isError,
+  search,
+  setSearch,
+  statusFilter,
+  setStatusFilter,
+  paymentForm,
+  setPaymentForm,
+  submitPayment,
+  isSubmitting,
+  paymentStatus,
+  formatMoney,
+}: {
+  rows: GroupContribution[];
+  isLoading: boolean;
+  isError: boolean;
+  search: string;
+  setSearch: (value: string) => void;
+  statusFilter: string;
+  setStatusFilter: (value: string) => void;
+  paymentForm: {
+    amount: string;
+    month: string;
+    phone: string;
+  };
+  setPaymentForm: (value: {
+    amount: string;
+    month: string;
+    phone: string;
+  }) => void;
+  submitPayment: () => void;
+  isSubmitting: boolean;
+  paymentStatus?: string;
+  formatMoney: (amount: number) => string;
+}) => (
+  <div className="grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+    <Panel title="Pay contribution" icon="Smartphone">
+      <div className="space-y-3">
+        <input
+          value={paymentForm.amount}
+          onChange={(event) =>
+            setPaymentForm({
+              ...paymentForm,
+              amount: event.target.value,
+            })
+          }
+          inputMode="decimal"
+          placeholder="Amount"
+          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+        />
+
+        <input
+          value={paymentForm.month}
+          onChange={(event) =>
+            setPaymentForm({
+              ...paymentForm,
+              month: event.target.value,
+            })
+          }
+          type="month"
+          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+        />
+
+        <input
+          value={paymentForm.phone}
+          onChange={(event) =>
+            setPaymentForm({
+              ...paymentForm,
+              phone: event.target.value,
+            })
+          }
+          placeholder="Phone (optional)"
+          className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+        />
+
+        <Button
+          type="button"
+          className="w-full"
+          onClick={submitPayment}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? <Spinner /> : "Initiate payment"}
+        </Button>
+
+        <p className="text-xs text-slate-500">
+          Payments use the existing payment service and stay pending until
+          provider confirmation.
+        </p>
+
+        {paymentStatus ? (
+          <Badge className={statusClass(paymentStatus)}>
+            Latest payment: {paymentStatus}
+          </Badge>
+        ) : null}
+      </div>
+    </Panel>
+
+    <Panel title="Contribution history" icon="ReceiptText">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search reference, member or ID"
+        />
+
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+        >
+          <option value="">All statuses</option>
+          <option value="PENDING">Pending</option>
+          <option value="CONFIRMED">Completed</option>
+          <option value="REJECTED">Failed</option>
+        </select>
+      </div>
+
+      {isLoading ? (
+        <Spinner />
+      ) : isError ? (
+        <ErrorState message="Unable to load contributions." />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon="ReceiptText"
+          title="No contributions found"
+          body="Contribution records will appear here after members pay or authorized manual records are created."
+        />
+      ) : (
+        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          {rows.map((row) => (
+            <div
+              key={row.id}
+              className="flex flex-wrap items-center justify-between gap-3 py-3"
+            >
+              <div>
+                <p className="font-medium">
+                  {memberName(row.member)}
+                </p>
+
+                <p className="text-xs text-slate-500">
+                  {row.month} · {row.reference || "No reference"} ·{" "}
+                  {new Date(row.created_at).toLocaleDateString()}
+                </p>
+              </div>
+
+              <div className="text-right">
+                <p className="font-display font-semibold">
+                  {formatMoney(Number(row.amount || 0))}
+                </p>
+
+                <Badge className={statusClass(row.status)}>
+                  {row.status === "CONFIRMED"
+                    ? "Completed"
+                    : row.status === "REJECTED"
+                      ? "Failed"
+                      : "Pending"}
+                </Badge>
               </div>
             </div>
           ))}
         </div>
+      )}
+    </Panel>
+  </div>
+);
 
-        {committee && committee.is_chairperson && (
-          <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 dark:border-emerald-950 dark:bg-emerald-950/20">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="min-w-0">
-                <h3 className="text-sm font-semibold">WhatsApp receipts</h3>
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                  {groupDevice?.status === "connected"
-                    ? `Receipts go out from +${groupDevice.phone} · confirmed contributions notify members automatically.`
-                    : "Connect the chairperson's WhatsApp so contribution receipts are sent automatically."}
+const LoansTab = ({
+  rows,
+  isLoading,
+  isError,
+  search,
+  setSearch,
+  statusFilter,
+  setStatusFilter,
+  formatMoney,
+}: {
+  rows: GroupLoanProjection[];
+  isLoading: boolean;
+  isError: boolean;
+  search: string;
+  setSearch: (value: string) => void;
+  statusFilter: string;
+  setStatusFilter: (value: string) => void;
+  formatMoney: (amount: number) => string;
+}) => (
+  <Panel title="Group member loans" icon="HandCoins">
+    <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Search borrower, member ID or loan number"
+      />
+
+      <select
+        value={statusFilter}
+        onChange={(event) => setStatusFilter(event.target.value)}
+        className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+      >
+        <option value="">All statuses</option>
+        <option value="disbursed">Disbursed</option>
+        <option value="closed">Closed</option>
+        <option value="defaulted">Defaulted</option>
+        <option value="approved">Approved</option>
+      </select>
+    </div>
+
+    {isLoading ? (
+      <Spinner />
+    ) : isError ? (
+      <ErrorState message="Unable to load group loans." />
+    ) : rows.length === 0 ? (
+      <EmptyState
+        icon="HandCoins"
+        title="No loans found"
+        body="Loans belonging to group members will appear here. Ownership remains in the existing loan module."
+      />
+    ) : (
+      <div className="grid gap-3 lg:grid-cols-2">
+        {rows.map((loan) => (
+          <div
+            key={loan.loan_number}
+            className="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-medium">
+                  {memberName(loan.borrower)}
+                </p>
+
+                <p className="text-xs text-slate-500">
+                  {loan.loan_number} · {loan.product}
                 </p>
               </div>
-              <Button type="button" size="sm" variant={groupDevice ? "outline" : "secondary"} onClick={() => setWhatsappOpen(true)}>
-                {groupDevice
-                  ? groupDevice.status === "connected"
-                    ? "Manage device"
-                    : `Connect device (${groupDevice.status.replace("_", " ")})`
-                  : "Connect WhatsApp"}
-              </Button>
+
+              <Badge className={statusClass(loan.status)}>
+                {loan.status}
+              </Badge>
+            </div>
+
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Metric
+                label="Principal"
+                value={formatMoney(
+                  Number(loan.principal_amount || 0),
+                )}
+              />
+
+              <Metric
+                label="Outstanding"
+                value={formatMoney(
+                  Number(loan.outstanding_amount || 0),
+                )}
+              />
+            </div>
+
+            <p className="mt-3 text-sm text-slate-500">
+              Next due:{" "}
+              {loan.next_due_date
+                ? `${formatMoney(
+                    Number(loan.next_repayment_amount || 0),
+                  )} on ${new Date(
+                    loan.next_due_date,
+                  ).toLocaleDateString()}`
+                : "No unpaid schedule"}
+            </p>
+          </div>
+        ))}
+      </div>
+    )}
+  </Panel>
+);
+
+const RepaymentsTab = ({
+  rows,
+  isLoading,
+  isError,
+  formatMoney,
+}: {
+  rows: GroupRepaymentProjection[];
+  isLoading: boolean;
+  isError: boolean;
+  formatMoney: (amount: number) => string;
+}) => (
+  <Panel title="Repayments" icon="BadgeDollarSign">
+    {isLoading ? (
+      <Spinner />
+    ) : isError ? (
+      <ErrorState message="Unable to load repayments." />
+    ) : rows.length === 0 ? (
+      <EmptyState
+        icon="BadgeDollarSign"
+        title="No repayments found"
+        body="Loan repayments for group members will appear here from the existing loan/payment architecture."
+      />
+    ) : (
+      <div className="divide-y divide-slate-100 dark:divide-slate-800">
+        {rows.map((row) => (
+          <div
+            key={row.id}
+            className="flex flex-wrap items-center justify-between gap-3 py-3"
+          >
+            <div>
+              <p className="font-medium">
+                {memberName(row.borrower)}
+              </p>
+
+              <p className="text-xs text-slate-500">
+                {row.loan_reference} · {row.transaction_reference} ·{" "}
+                {new Date(row.date).toLocaleDateString()}
+              </p>
+            </div>
+
+            <div className="text-right">
+              <p className="font-display font-semibold">
+                {formatMoney(Number(row.amount || 0))}
+              </p>
+
+              <Badge className={statusClass(row.status)}>
+                {row.status}
+              </Badge>
             </div>
           </div>
-        )}
+        ))}
+      </div>
+    )}
+  </Panel>
+);
 
-        {committee &&
-          (["TREASURER", "SECRETARY"] as const).map((role) => {
-            const state = committee.roles[role];
-            const roleName = role === "TREASURER" ? "Treasurer" : "Secretary";
-            return (
-              <div
-                key={role}
-                className="mt-4 rounded-xl border border-slate-100 p-4 dark:border-slate-800"
-              >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h3 className="text-sm font-semibold">{roleName}</h3>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                      state.open
-                        ? "bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300"
-                        : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                    }`}
-                  >
-                    {state.open ? "Voting open" : "Elected"}
-                  </span>
-                </div>
+const LedgerTab = ({
+  rows,
+  isLoading,
+  isError,
+  search,
+  setSearch,
+  statusFilter,
+  setStatusFilter,
+  selected,
+  setSelected,
+  formatMoney,
+}: {
+  rows: GroupLedgerEntry[];
+  isLoading: boolean;
+  isError: boolean;
+  search: string;
+  setSearch: (value: string) => void;
+  statusFilter: string;
+  setStatusFilter: (value: string) => void;
+  selected: GroupLedgerEntry | null;
+  setSelected: (entry: GroupLedgerEntry | null) => void;
+  formatMoney: (amount: number) => string;
+}) => (
+  <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+    <Panel title="Group ledger" icon="BookOpenText">
+      <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Search reference, member or description"
+        />
 
-                {state.open ? (
-                  <>
-                    {state.candidates.length === 0 && (
-                      <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-                        No candidates yet. Verified members can declare interest.
-                      </p>
-                    )}
+        <select
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-slate-800 dark:bg-slate-950"
+        >
+          <option value="">All statuses</option>
+          <option value="SUCCESS">Success</option>
+          <option value="CONFIRMED">Confirmed</option>
+          <option value="PENDING">Pending</option>
+          <option value="POSTED">Posted</option>
+          <option value="FAILED">Failed</option>
+        </select>
+      </div>
 
-                    {state.candidates.length > 0 && (
-                      <ul className="mt-3 space-y-2">
-                        {state.candidates.map((candidate) => (
-                          <li
-                            key={candidate.member_id}
-                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/40"
-                          >
-                            <div className="min-w-0">
-                              <p className="truncate text-sm font-medium">
-                                {candidate.member.first_name} {candidate.member.last_name}
-                                <span className="ml-2 text-xs font-normal text-slate-500">
-                                  {candidate.votes} vote{candidate.votes === 1 ? "" : "s"}
-                                </span>
-                              </p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400">
-                                {candidate.member.membership_number}
-                              </p>
-                            </div>
-                            {state.my_vote === candidate.member_id ? (
-                              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300">
-                                Your vote
-                              </span>
-                            ) : (
-                              !committee.is_chairperson && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() =>
-                                    handleVote(
-                                      role,
-                                      candidate.member_id,
-                                      `${candidate.member.first_name} ${candidate.member.last_name}`,
-                                    )
-                                  }
-                                  disabled={vote.isPending}
-                                >
-                                  Vote
-                                </Button>
-                              )
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+      {isLoading ? (
+        <Spinner />
+      ) : isError ? (
+        <ErrorState message="Unable to load ledger entries." />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon="BookOpenText"
+          title="No ledger entries found"
+          body="This read-only projection will show existing group financial records when available."
+        />
+      ) : (
+        <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          {rows.map((entry) => (
+            <button
+              key={entry.id}
+              type="button"
+              onClick={() => setSelected(entry)}
+              className="flex w-full flex-wrap items-center justify-between gap-3 py-3 text-left"
+            >
+              <div>
+                <p className="font-medium">
+                  {entry.transaction_type}
+                </p>
 
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {!state.my_candidacy && isVerified && !committee.is_chairperson && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="secondary"
-                            disabled={declare.isPending}
-                            onClick={() => handleDeclare(role)}
-                          >
-                            {declare.isPending ? <Spinner /> : "Declare interest"}
-                          </Button>
-                        )}
-                      {state.my_candidacy && (
-                        <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-medium text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
-                          You declared interest
-                        </span>
-                      )}
-                      {committee.is_chairperson && (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          disabled={closeVoting.isPending}
-                          onClick={() =>
-                            window.confirm(
-                              `Close voting for ${roleName}? The candidate with the most votes wins.`,
-                            ) && handleClose(role)
-                          }
-                        >
-                          {closeVoting.isPending ? <Spinner /> : "Close voting"}
-                        </Button>
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                    {committee.roles[role].candidates[0]
-                      ? `${roleName} elected with ${committee.roles[role].candidates[0].votes} vote${committee.roles[role].candidates[0].votes === 1 ? "" : "s"}.`
-                      : `${roleName} elected.`}
-                  </p>
-                )}
+                <p className="text-xs text-slate-500">
+                  {memberName(entry.member)} ·{" "}
+                  {entry.reference || "No reference"} ·{" "}
+                  {new Date(entry.date).toLocaleDateString()}
+                </p>
               </div>
-            );
-          })}
-      </section>
 
-      {/* Contributions */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-        <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold">
-          <LucideIcon name="ReceiptText" size={16} /> My contributions
-        </h2>
-        {!contributions || contributions.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
-            No contributions yet.
-          </p>
-        ) : (
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
-            {contributions.map((contribution) => (
-              <li key={contribution.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
-                <div>
-                  <p className="text-sm font-medium">
-                    {formatMoney(Number(contribution.amount))}
-                    <span className="ml-2 text-xs font-normal text-slate-500">{contribution.month}</span>
-                  </p>
-                  {contribution.reference && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{contribution.reference}</p>
-                  )}
-                </div>
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    STATUS_STYLES[contribution.status] ?? ""
-                  }`}
-                >
-                  {contribution.status_display}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+              <div className="text-right">
+                <p className="font-display font-semibold">
+                  {formatMoney(Number(entry.amount || 0))}
+                </p>
 
-      <WhatsAppConnectModal
-        isOpen={whatsappOpen}
-        onClose={() => setWhatsappOpen(false)}
-        groupId={groupId ? Number(groupId) : undefined}
-        defaultDisplayName="Chairperson device"
-        onConnected={(phone) => toast.success(`Device connected (+${phone}).`, { autoClose: 3000 })}
+                <Badge className={statusClass(entry.status)}>
+                  {entry.status}
+                </Badge>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </Panel>
+
+    <Panel title="Transaction details" icon="FileText">
+      {!selected ? (
+        <p className="text-sm text-slate-500">
+          Select a ledger row to inspect the transaction details.
+        </p>
+      ) : (
+        <dl className="space-y-3 text-sm">
+          <Detail label="Transaction ID" value={String(selected.id)} />
+
+          <Detail
+            label="Member"
+            value={memberName(selected.member)}
+          />
+
+          <Detail
+            label="Type"
+            value={selected.transaction_type}
+          />
+
+          <Detail
+            label="Amount"
+            value={formatMoney(Number(selected.amount || 0))}
+          />
+
+          <Detail label="Status" value={selected.status} />
+
+          <Detail
+            label="Date/time"
+            value={new Date(selected.date).toLocaleString()}
+          />
+
+          <Detail
+            label="Internal reference"
+            value={selected.internal_reference || "—"}
+          />
+
+          <Detail
+            label="Provider reference"
+            value={selected.provider_reference || "—"}
+          />
+
+          <Detail
+            label="Related contribution"
+            value={
+              selected.related_contribution
+                ? String(selected.related_contribution)
+                : "—"
+            }
+          />
+
+          <Detail
+            label="Related loan"
+            value={selected.related_loan || "—"}
+          />
+
+          <Detail
+            label="Description"
+            value={selected.description || "—"}
+          />
+
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => setSelected(null)}
+          >
+            Clear selection
+          </Button>
+        </dl>
+      )}
+    </Panel>
+  </div>
+);
+
+const Detail = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) => (
+  <div>
+    <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">
+      {label}
+    </dt>
+
+    <dd className="mt-1 break-words font-medium">
+      {value}
+    </dd>
+  </div>
+);
+
+const ActivityTab = ({
+  rows,
+  isLoading,
+  isError,
+}: {
+  rows: GroupActivity[];
+  isLoading: boolean;
+  isError: boolean;
+}) => (
+  <Panel title="Activity" icon="History">
+    {isLoading ? (
+      <Spinner />
+    ) : isError ? (
+      <ErrorState message="Unable to load activity." />
+    ) : (
+      <ActivityList rows={rows} />
+    )}
+  </Panel>
+);
+
+const ActivityList = ({ rows }: { rows: GroupActivity[] }) => {
+  if (rows.length === 0) {
+    return (
+      <EmptyState
+        icon="History"
+        title="No activity yet"
+        body="Group activity will appear here as members join, contributions are recorded, or roles change."
       />
-    </div>
+    );
+  }
+
+  return (
+    <ol className="space-y-3">
+      {rows.map((item) => (
+        <li
+          key={item.id}
+          className="flex gap-3 rounded-2xl border border-slate-200 p-3 dark:border-slate-800"
+        >
+          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200">
+            <LucideIcon name="History" size={17} />
+          </span>
+
+          <div className="min-w-0">
+            <p className="font-medium">{item.title}</p>
+
+            <p className="text-sm text-slate-500">
+              {item.description || item.event_type_display}
+            </p>
+
+            <p className="mt-1 text-xs text-slate-400">
+              {new Date(item.created_at).toLocaleString()} ·{" "}
+              {memberName(item.actor)}
+            </p>
+          </div>
+        </li>
+      ))}
+    </ol>
   );
 };
 

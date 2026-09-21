@@ -57,7 +57,7 @@ export interface MyMemberProfile {
   gender?: string | null;
   occupation?: string | null;
   preferred_currency?: string | null;
-  selected_plan?: number | string | null;
+  selected_plan?: MembershipPlan | null;
   is_onboarded?: boolean;
   onboarded_at?: string | null;
   status: string;
@@ -73,7 +73,7 @@ export interface OtpRequestResult {
   expires_in_minutes: number;
   dev_mode: boolean;
   dev_code?: string;
-  /** "whatsapp" when the code was delivered over WhatsApp, otherwise absent. */
+  /** Delivery channel (currently only SMS; present for forward-compat). */
   channel?: string;
 }
 
