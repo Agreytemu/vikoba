@@ -61,7 +61,15 @@ def effective_values(group, product):
             or _default_penalty_grace_days()
         ),
         "group_capacity_enabled": bool(policy.group_capacity_enabled) if policy else False,
+        "kyc_level_required": (
+            (policy.kyc_level_required if policy and policy.kyc_level_required else None)
+            or _default_kyc_level()
+        ),
     }
+
+
+def _default_kyc_level():
+    return str(getattr(settings, "KYC_REQUIRED_LEVEL", "LEVEL_1"))
 
 
 def group_member_ids(group):

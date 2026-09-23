@@ -7,6 +7,7 @@ write operations: posting a balanced manual journal and reversing a transaction
 Members get a strictly scoped read of their own financial transactions.
 """
 from django.db import transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
@@ -15,7 +16,20 @@ from rest_framework.response import Response
 
 from finance.models import AuditEvent, FinancialAccount, FinancialTransaction
 from finance.services.engine import FinancialError
+from finance.services.exports import report_to_csv
 from finance.services.reversals import reverse_financial_transaction
+from finance.services.dashboard import (
+    run_member_financial_dashboard,
+    run_org_financial_dashboard,
+)
+from finance.services.statements import (
+    StatementError,
+    run_loan_statement,
+    run_member_statement,
+    run_withdrawal_report,
+)
+from loans.models import LoanAccount
+from members.models import Member
 from users.permissions import ALL_BUSINESS_ROLES, HasTransactionAccess, IsMember, has_role
 
 from .serializers import (
@@ -25,6 +39,17 @@ from .serializers import (
     JournalRequestSerializer,
     ReversalRequestSerializer,
 )
+
+
+def csv_export_response(report):
+    """Stream any statement/report payload as a UTF-8 BOM CSV download."""
+    filename = f"{report.get('statement', 'report')}.csv"
+    response = HttpResponse(
+        report_to_csv(report),
+        content_type="text/csv; charset=utf-8",
+    )
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 class _StaffOrOwnMemberReadOnlyMixin:
@@ -176,3 +201,156 @@ def _client_ip(request):
     if forwarded:
         return forwarded.split(",")[0].strip()
     return request.META.get("REMOTE_ADDR", "")[:45]
+
+
+class FinancialIntegrityView(viewsets.ViewSet):
+    """Run the on-demand financial integrity checks (staff only).
+
+    Read-only report of unbalanced journals, journal-less transactions, settled
+    payments without a ledger posting, cached-vs-ledger drift and duplicate
+    provider references. Underpins the financial-integrity section of the ops
+    dashboard; nothing here mutates data.
+    """
+
+    permission_classes = [HasTransactionAccess]
+
+    def list(self, request):
+        from finance.services.integrity import run_integrity_checks
+
+        report = run_integrity_checks()
+        return Response(report)
+
+
+class MemberStatementView(viewsets.ViewSet):
+    """A member's own ledger-derived statement (savings or financial).
+
+    GET /api/v1/finance/me/statement/?kind=savings&start=YYYY-MM-DD&end=YYYY-MM-DD
+    kind defaults to ``savings`` (running-balance statement); ``financial``
+    itemises every FinancialTransaction the member owns, legs included. Every
+    figure traces to the journal — cached projections are never used.
+    ``?export=csv`` streams the rows as a UTF-8 CSV file.
+    """
+
+    permission_classes = [IsMember]
+
+    def list(self, request):
+        member = request.user.member
+        try:
+            report = run_member_statement(
+                member,
+                kind=request.query_params.get("kind", "savings"),
+                account=request.query_params.get("account") or None,
+                start=request.query_params.get("start") or None,
+                end=request.query_params.get("end") or None,
+            )
+        except StatementError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if request.query_params.get("export") == "csv":
+            return csv_export_response(report)
+        return Response(report)
+
+
+class StaffMemberStatementView(viewsets.ViewSet):
+    """Staff reading of any member's ledger-derived statement.
+
+    GET /api/v1/finance/statements/{member_id}/ — same query params as the
+    member's own statement endpoint. Only business-role staff may read another
+    member's financial data.
+    """
+
+    permission_classes = [HasTransactionAccess]
+
+    def list(self, request, member_id=None):
+        if not has_role(request.user, ALL_BUSINESS_ROLES):
+            # SAFE_METHODS pass IsAuthenticated; this closes the read gap.
+            return Response({"detail": "You do not have permission."}, status=status.HTTP_403_FORBIDDEN)
+        member = get_object_or_404(Member, pk=member_id)
+        try:
+            report = run_member_statement(
+                member,
+                kind=request.query_params.get("kind", "savings"),
+                account=request.query_params.get("account") or None,
+                start=request.query_params.get("start") or None,
+                end=request.query_params.get("end") or None,
+            )
+        except StatementError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if request.query_params.get("export") == "csv":
+            return csv_export_response(report)
+        return Response(report)
+
+
+class StaffLoanStatementView(viewsets.ViewSet):
+    """Staff reading of any loan's journal-reconstructed statement.
+
+    GET /api/v1/finance/loans/{loan_number}/statement/?start=&end=
+    Outstanding principal comes from the 1300-LOAN_PRINCIPAL legs — the cached
+    loan columns are only echoed back under ``recorded_*``.
+    """
+
+    permission_classes = [HasTransactionAccess]
+
+    def list(self, request, loan_number=None):
+        if not has_role(request.user, ALL_BUSINESS_ROLES):
+            return Response({"detail": "You do not have permission."}, status=status.HTTP_403_FORBIDDEN)
+        loan = get_object_or_404(LoanAccount, loan_number=loan_number)
+        try:
+            report = run_loan_statement(
+                loan,
+                start=request.query_params.get("start") or None,
+                end=request.query_params.get("end") or None,
+            )
+        except StatementError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(report)
+
+
+class FinancialDashboardView(viewsets.ViewSet):
+    """Org-level financial KPIs reconstructed from the journal."""
+
+    permission_classes = [HasTransactionAccess]
+
+    def list(self, request):
+        if not has_role(request.user, ALL_BUSINESS_ROLES):
+            return Response({"detail": "You do not have permission."}, status=status.HTTP_403_FORBIDDEN)
+        return Response(run_org_financial_dashboard())
+
+
+class MemberFinancialDashboardView(viewsets.ViewSet):
+    """Member-scoped dashboard (savings totals from the journal + loans)."""
+
+    permission_classes = [IsMember]
+
+    def list(self, request):
+        return Response(run_member_financial_dashboard(request.user.member))
+
+
+class StaffWithdrawalReportView(viewsets.ViewSet):
+    """Withdrawal report tying requests to WITHDRAWAL journal postings.
+
+    GET /api/v1/finance/reports/withdrawals/?member_id=&status=&start=&end=
+    Only business-role staff may view; a withdrawal only counts as ``paid_out``
+    when its WITHDRAWAL journal leg exists.
+    """
+
+    permission_classes = [HasTransactionAccess]
+
+    def list(self, request):
+        if not has_role(request.user, ALL_BUSINESS_ROLES):
+            return Response({"detail": "You do not have permission."}, status=status.HTTP_403_FORBIDDEN)
+        member = None
+        member_id = request.query_params.get("member_id") or None
+        if member_id:
+            member = get_object_or_404(Member, pk=member_id)
+        try:
+            report = run_withdrawal_report(
+                member=member,
+                start=request.query_params.get("start") or None,
+                end=request.query_params.get("end") or None,
+                status=request.query_params.get("status") or None,
+            )
+        except StatementError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if request.query_params.get("export") == "csv":
+            return csv_export_response(report)
+        return Response(report)

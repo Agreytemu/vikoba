@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import PaymentTransaction, WebhookEvent
+from .models import PaymentTransaction, ReconciliationRecord, WebhookEvent
 
 
 @admin.register(PaymentTransaction)
@@ -50,3 +50,39 @@ class WebhookEventAdmin(admin.ModelAdmin):
     search_fields = ("event_id",)
     readonly_fields = ("event_id", "event_type", "payload", "received_at")
     date_hierarchy = "received_at"
+
+
+@admin.register(ReconciliationRecord)
+class ReconciliationRecordAdmin(admin.ModelAdmin):
+    list_display = (
+        "issue_type",
+        "provider_reference",
+        "internal_reference",
+        "payment",
+        "resolution_status",
+        "created_at",
+    )
+    list_filter = ("issue_type", "resolution_status", "provider")
+    search_fields = (
+        "provider_reference",
+        "internal_reference",
+        "payment__internal_reference",
+        "notes",
+    )
+    readonly_fields = (
+        "payment",
+        "provider",
+        "provider_reference",
+        "internal_reference",
+        "event_id",
+        "issue_type",
+        "created_at",
+    )
+    date_hierarchy = "created_at"
+    fieldsets = (
+        ("Exception", {"fields": ("issue_type", "resolution_status", "payment", "event_id")}),
+        ("References", {"fields": ("provider", "provider_reference", "internal_reference")}),
+        ("Facts", {"fields": ("expected_amount", "actual_amount", "expected_currency", "actual_currency")}),
+        ("Status", {"fields": ("expected_status", "actual_status", "notes")}),
+        ("Resolution audit", {"fields": ("resolved_by", "resolved_at", "resolution_note")}),
+    )

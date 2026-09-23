@@ -17,6 +17,8 @@ from rest_framework.test import APIClient
 from accounts.models import SavingsAccount, SavingsProduct
 from finance.models import AuditEvent, FinancialTransaction
 from groups.models import GroupMembership, VikobaGroup
+from kyc.models import KYCProfile
+from kyc.statuses import KYCLevel, KYCStatus, KYCVerificationMethod
 from members.models import Member
 from users.models import User
 
@@ -50,7 +52,7 @@ def _make_user(email, username, role, **kwargs):
 
 
 def _make_member(user=None, number=None):
-    return Member.objects.create(
+    member = Member.objects.create(
         user=user,
         first_name="Phase",
         last_name=number or "Three",
@@ -60,6 +62,17 @@ def _make_member(user=None, number=None):
         kra_pin=f"P{number or '00000'}ABC",
         country="Tanzania",
     )
+    member.is_verified = True
+    member.save(update_fields=["is_verified"])
+    KYCProfile.objects.create(
+        member=member,
+        status=KYCStatus.VERIFIED,
+        verification_level=KYCLevel.LEVEL_1,
+        verification_method=KYCVerificationMethod.PROVIDER,
+        provider="simulated",
+        provider_reference="SIM-KYC-TESTP3",
+    )
+    return member
 
 
 def _make_product(requires_guarantors=False):

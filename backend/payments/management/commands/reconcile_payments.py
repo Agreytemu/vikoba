@@ -80,12 +80,27 @@ class Command(BaseCommand):
         fetcher = provider.get_payment if kind == "payment" else provider.get_payout
         try:
             status_body = fetcher(tx.provider_reference)
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            # A provider-level failure is itself a reconciliation exception —
+            # never silently skipped.
+            ReconciliationRecord.objects.get_or_create(
+                provider=tx.provider,
+                provider_reference=tx.provider_reference or "",
+                issue_type=ReconciliationRecord.IssueType.PROVIDER_ERROR,
+                defaults={
+                    "payment": tx,
+                    "internal_reference": tx.internal_reference,
+                    "expected_amount": tx.amount,
+                    "expected_status": tx.status,
+                    "notes": f"Provider status lookup failed during reconciliation: {exc}",
+                },
+            )
             self.stderr.write(f"Skipped {tx.internal_reference}: provider error")
             return
 
         raw_status = str(status_body.get("status", "")).lower()
         if raw_status in ("completed", "successful", "success", "paid"):
+            self._record_missing_webhook(tx, kind=kind)
             handler = handle_payment_completed if kind == "payment" else handle_payout_completed
             event, _ = WebhookEvent.objects.get_or_create(
                 event_id=f"recon-{tx.internal_reference}",
@@ -97,6 +112,7 @@ class Command(BaseCommand):
             )
             handler(event, {"reference": tx.provider_reference, **status_body})
             stats["payments" if kind == "payment" else "payouts"] += 1
+            self._record_missing_internal(tx)
             self.stdout.write(f"{tx.internal_reference} -> completed")
         elif raw_status in ("failed", "voided", "expired", "rejected", "cancelled"):
             handler = handle_payment_failed if kind == "payment" else handle_payout_failed
@@ -143,3 +159,52 @@ class Command(BaseCommand):
                 },
             )
             self.stdout.write(f"{tx.internal_reference} -> {raw_status} (unexpected)")
+
+    def _record_missing_webhook(self, tx, *, kind):
+        """Note the settlement whose webhook never reached us.
+
+        The poll only sees this payment because the regular event delivery was
+        missed (or lost in the retry loop) — record it once, keyed by the
+        provider reference, so the ops dashboard can quantify missed deliveries.
+        """
+        if WebhookEvent.objects.filter(
+            processed=True, payload__reference=tx.provider_reference or ""
+        ).exists():
+            return
+        ReconciliationRecord.objects.get_or_create(
+            provider=tx.provider,
+            provider_reference=tx.provider_reference or "",
+            issue_type=ReconciliationRecord.IssueType.MISSING_WEBHOOK,
+            defaults={
+                "payment": tx,
+                "internal_reference": tx.internal_reference,
+                "expected_amount": tx.amount,
+                "actual_status": "completed",
+                "notes": (
+                    f"Reconciliation poll confirmed {kind} completion; no processed "
+                    "webhook event was recorded for it."
+                ),
+            },
+        )
+
+    def _record_missing_internal(self, tx):
+        """Flag a settled payment that never produced a ledger posting.
+
+        Reuses the integrity monitor's finding inside the reconcile loop so a
+        polled settlement surfaces the same way a webhook-driven one does.
+        """
+        tx.refresh_from_db()
+        if tx.status != PaymentTransaction.Status.SUCCESS or tx.financial_transactions.exists():
+            return
+        ReconciliationRecord.objects.get_or_create(
+            provider=tx.provider,
+            provider_reference=tx.provider_reference or "",
+            issue_type=ReconciliationRecord.IssueType.MISSING_INTERNAL_TRANSACTION,
+            defaults={
+                "payment": tx,
+                "internal_reference": tx.internal_reference,
+                "expected_amount": tx.amount,
+                "actual_status": tx.status,
+                "notes": "Payment settled but no ledger posting was created for it.",
+            },
+        )

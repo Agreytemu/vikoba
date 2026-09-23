@@ -4,6 +4,7 @@ from datetime import datetime, time
 from decimal import Decimal
 
 from django.db.models import Count, Q, Sum
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import generics, status
@@ -11,6 +12,12 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from finance.services.exports import report_to_csv
+from finance.services.statements import (
+    StatementError,
+    run_group_contribution_report,
+    run_group_savings_statement,
+)
 from loans.models import LoanAccount, LoanSchedule, LoanTransaction
 from members.models import Member
 from payments.models import PaymentTransaction
@@ -601,6 +608,62 @@ class GroupLedgerView(generics.GenericAPIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class GroupStatementView(generics.GenericAPIView):
+    """Ledger-derived group statement (member-savings flows, journal-backed).
+
+    Read-only, gated exactly like ``/ledger``: any active group member may pull
+    the group's statement; the figures come from the finance journal via
+    :func:`finance.services.statements.run_group_savings_statement`.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, group_id=None):
+        group = get_object_or_404(VikobaGroup, pk=group_id)
+        _require_group_member(request, group)
+        try:
+            report = run_group_savings_statement(
+                group,
+                start=request.query_params.get("start") or None,
+                end=request.query_params.get("end") or None,
+            )
+        except StatementError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        if request.query_params.get("export") == "csv":
+            filename = f"group-statement-{group.pk}.csv"
+            response = HttpResponse(
+                report_to_csv(report),
+                content_type="text/csv; charset=utf-8",
+            )
+            response["Content-Disposition"] = f'attachment; filename="{filename}"'
+            return response
+        return Response(report, status=status.HTTP_200_OK)
+
+
+class GroupContributionReportView(generics.GenericAPIView):
+    """Journal-tied contribution report (scheduled vs. ledger-collected).
+
+    Same data scoping as the contributions list: officers/staff see the whole
+    group, regular members only their own rows.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, group_id=None):
+        group = get_object_or_404(VikobaGroup, pk=group_id)
+        member = _member_for(request)
+        membership = _active_membership(group, member)
+        if member is None or membership is None:
+            raise PermissionDenied("You are not a member of this group.")
+        scope = None if _can_manage_group(request.user, membership) else member
+        report = run_group_contribution_report(
+            group,
+            month=request.query_params.get("month") or None,
+            member=scope,
+        )
+        return Response(report, status=status.HTTP_200_OK)
 
 
 class GroupActivityListView(generics.GenericAPIView):

@@ -297,6 +297,14 @@ class GroupWithdrawalPolicy(models.Model):
         default=False,
         help_text="Route to manual review when the member has an unpaid loan penalty.",
     )
+    kyc_level_required = models.CharField(
+        max_length=10,
+        choices=[("LEVEL_0", "LEVEL_0"), ("LEVEL_1", "LEVEL_1"), ("LEVEL_2", "LEVEL_2")],
+        null=True,
+        blank=True,
+        help_text="KYC verification level required before a member may withdraw. "
+        "None = inherit the platform KYC_REQUIRED_LEVEL default.",
+    )
     review_levels = models.CharField(
         max_length=12,
         choices=REVIEW_LEVEL_CHOICES,

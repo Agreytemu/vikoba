@@ -265,6 +265,16 @@ class AutoWithdrawalView(APIView):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
+        from kyc import services as kyc_services
+
+        if not kyc_services.satisfies(member):
+            return Response(
+                {
+                    "detail": "Your KYC verification level does not yet meet the requirement for withdrawals.",
+                    "verification_required": True,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         if not member.phone_verified:
             return Response(
                 {
@@ -566,6 +576,7 @@ def snippe_webhook(request):
     )
     if not created:
         # Duplicate delivery — acknowledged without reprocessing.
+        _record_already_processed_event(event, data)
         return Response({"status": "duplicate", "already_processed": event.processed})
 
     try:
@@ -579,3 +590,28 @@ def snippe_webhook(request):
         )
 
     return Response({"status": "processed"})
+
+
+def _record_already_processed_event(event, data):
+    """Note re-delivered webhook ids so the ops dashboard can see them.
+
+    The ingress acknowledges the duplicate without reprocessing; the record is
+    informational and must never fail the acknowledgement.
+    """
+    body = data.get("data") if isinstance(data.get("data"), dict) else data
+    reference = str(body.get("reference") or "")
+    if not reference:
+        return
+    try:
+        ReconciliationRecord.objects.get_or_create(
+            provider="snippe",
+            provider_reference=reference,
+            issue_type=ReconciliationRecord.IssueType.ALREADY_PROCESSED_EVENT,
+            defaults={
+                "event_id": event.event_id,
+                "actual_status": str(data.get("type") or ""),
+                "notes": "A webhook event id was delivered more than once; the payment was not reprocessed.",
+            },
+        )
+    except Exception:  # noqa: BLE001
+        pass  # acknowledgement of a duplicate must never fail

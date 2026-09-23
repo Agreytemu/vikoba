@@ -5,10 +5,26 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from accounts.models import SavingsAccount, SavingsProduct, SavingsTransaction
+from kyc.models import KYCProfile
+from kyc.statuses import KYCLevel, KYCStatus, KYCVerificationMethod
 from members.models import Member
 from users.models import User
 
 from .models import LoanAccount, LoanApplication, LoanApplicationDocument, LoanApplicationGuarantor, LoanProduct, LoanSchedule
+
+
+def _kyc_verify(member):
+    member.is_verified = True
+    member.save(update_fields=["is_verified"])
+    KYCProfile.objects.create(
+        member=member,
+        status=KYCStatus.VERIFIED,
+        verification_level=KYCLevel.LEVEL_1,
+        verification_method=KYCVerificationMethod.PROVIDER,
+        provider="simulated",
+        provider_reference="SIM-KYC-TEST",
+    )
+    return member
 
 
 class LoanApplicationFlowTest(TestCase):
@@ -33,7 +49,7 @@ class LoanApplicationFlowTest(TestCase):
 			role=User.ACCOUNTANT,
 		)
 
-		self.member = Member.objects.create(
+		self.member = _kyc_verify(Member.objects.create(
 			first_name="John",
 			middle_name="K",
 			last_name="Mwangi",
@@ -45,8 +61,8 @@ class LoanApplicationFlowTest(TestCase):
 			country="Kenya",
 			county="Nairobi",
 			city="Nairobi",
-		)
-		self.guarantor_member = Member.objects.create(
+		))
+		self.guarantor_member = _kyc_verify(Member.objects.create(
 			first_name="Jane",
 			middle_name="W",
 			last_name="Kamau",
@@ -58,7 +74,7 @@ class LoanApplicationFlowTest(TestCase):
 			country="Kenya",
 			county="Kiambu",
 			city="Ruiru",
-		)
+		))
 		self.product = SavingsProduct.objects.create(
 			name="Ordinary Savings",
 			code="OS",

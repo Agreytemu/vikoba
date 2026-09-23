@@ -134,6 +134,11 @@ def submit_withdrawal(
     if not member.is_verified:
         raise ApprovalError(ApprovalError.KYC_REQUIRED, "Withdrawals require a verified account.")
 
+    from kyc import services as kyc_services
+
+    if not kyc_services.satisfies(member):
+        raise ApprovalError(ApprovalError.KYC_REQUIRED, "Withdrawals require a verified account.")
+
     requester = requester or getattr(member, "user", None)
     group = group or _default_group(member)
     policy = policy if policy is not None else (get_or_create_policy(group) if group else None)

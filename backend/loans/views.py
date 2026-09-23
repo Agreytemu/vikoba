@@ -35,6 +35,7 @@ from .services import (
 )
 from accounts.models import SavingsAccount
 from finance.models import AuditEvent
+from finance.services.statements import StatementError, run_loan_statement
 
 
 REVIEW_ROLES = {User.ADMIN, User.MANAGER, User.OPERATION}
@@ -407,6 +408,15 @@ class MemberLoanApplicationViewSet(
 				},
 				status=status.HTTP_403_FORBIDDEN,
 			)
+		from kyc import services as kyc_services
+		if not kyc_services.satisfies(application.member):
+			return Response(
+				{
+					"detail": "Your KYC verification level does not yet meet the requirement for a loan application.",
+					"verification_required": True,
+				},
+				status=status.HTTP_403_FORBIDDEN,
+			)
 		if application.status != LoanApplication.Status.DRAFT:
 			return Response({"detail": "Only draft applications can be submitted."}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -533,6 +543,19 @@ class MemberLoanAccountViewSet(
 				LoanAccount.objects.select_related("product").prefetch_related("schedule").get(pk=loan.pk)
 			).data
 		)
+
+	@action(detail=True, methods=["get"], url_path="statement")
+	def statement(self, request, loan_number=None):
+		loan = self.get_object()
+		try:
+			report = run_loan_statement(
+				loan,
+				start=request.query_params.get("start") or None,
+				end=request.query_params.get("end") or None,
+			)
+		except StatementError as exc:
+			return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+		return Response(report)
 
 	@action(detail=True, methods=["get"], url_path="balance")
 	def balance(self, request, loan_number=None):

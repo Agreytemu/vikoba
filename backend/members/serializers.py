@@ -61,6 +61,7 @@ class MeMemberSerializer(serializers.ModelSerializer):
     next_of_kin = NextOfKinSerializer(many=True, read_only=True)
     employment = EmploymentDetailSerializer(read_only=True)
     verification = serializers.SerializerMethodField()
+    kyc = serializers.SerializerMethodField()
     email = serializers.EmailField(source="user.email", read_only=True)
     # Full plan object (id, name, price, currency, interval) so the checkout UI
     # never needs to hardcode a plan. Written via the onboarding endpoint only.
@@ -97,6 +98,7 @@ class MeMemberSerializer(serializers.ModelSerializer):
             "phone_verified",
             "is_verified",
             "verification",
+            "kyc",
             "next_of_kin",
             "employment",
         )
@@ -107,12 +109,18 @@ class MeMemberSerializer(serializers.ModelSerializer):
             "phone_network",
             "is_verified",
             "verification",
+            "kyc",
             "next_of_kin",
             "employment",
         )
 
     def get_verification(self, obj):
         return obj.verification_status()
+
+    def get_kyc(self, obj):
+        from kyc.services import current_status
+
+        return current_status(obj)
 
     def update(self, instance, validated_data):
         phone_changed = (

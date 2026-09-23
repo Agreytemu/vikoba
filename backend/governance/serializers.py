@@ -181,6 +181,7 @@ class GroupWithdrawalPolicySerializer(serializers.ModelSerializer):
             "min_retained_ratio",
             "review_on_outstanding_loan",
             "review_on_outstanding_penalty",
+            "kyc_level_required",
             "review_levels",
             "reviewer_role",
             "updated_by",
@@ -198,6 +199,7 @@ class GroupWithdrawalPolicySerializer(serializers.ModelSerializer):
             "min_retained_ratio": str(values["min_retained_ratio"]),
             "review_levels": values["review_levels"],
             "reviewer_role": values["reviewer_role"],
+            "kyc_level_required": values["kyc_level_required"],
             "policy_version": values["policy_version"],
         }
 

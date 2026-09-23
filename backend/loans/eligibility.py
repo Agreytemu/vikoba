@@ -18,6 +18,12 @@ from .policies import capacity_available, effective_values
 ZERO = Decimal("0.00")
 
 
+def _kyc_satisfied(member, kyc_level) -> bool:
+    from kyc import services as kyc_services
+
+    return kyc_services.satisfies(member, kyc_level)
+
+
 def check_eligibility(application: LoanApplication, *, approved_amount=None):
     """Evaluate every blocking rule for an application.
 
@@ -29,6 +35,12 @@ def check_eligibility(application: LoanApplication, *, approved_amount=None):
     member = application.member
     product = application.loan_type
     values = effective_values(application.group, product)
+
+    kyc_level = values["kyc_level_required"]
+    if not _kyc_satisfied(member, kyc_level):
+        errors.append(
+            f"The member does not satisfy the required {kyc_level} KYC verification level."
+        )
 
     if amount < product.min_amount:
         errors.append(

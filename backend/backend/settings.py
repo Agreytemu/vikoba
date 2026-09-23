@@ -93,6 +93,7 @@ INSTALLED_APPS = [
     "payments.apps.PaymentsConfig",
     "finance.apps.FinanceConfig",
     "governance.apps.GovernanceConfig",
+    "kyc.apps.KYCConfig",
 
     # Third party apps
     'rest_framework',
@@ -325,6 +326,7 @@ REST_FRAMEWORK = {
         'anon': '100/min',
         'auth': '30/min',
         'pin': '10/min',
+        'kyc-submit': '10/min',
     },
 }
 
@@ -413,6 +415,35 @@ GOVERNANCE_OFFICER_ROLES = ("AD", "MA", "OP", "FI", "AC")
 # How long a manual-review approval stays open before it expires and releases
 # the reserved funds.
 APPROVAL_EXPIRY_HOURS = int(os.getenv("APPROVAL_EXPIRY_HOURS", "72"))
+
+# ---------------------------------------------------------------------------
+# KYC & identity verification (Phase 6).
+#
+# KYC is an identity-verification layer, NOT a financial one: it never writes
+# ledger entries and never calls payments. The verification engines below only
+# CONSUME KYC status as an eligibility input.
+#
+#   KYC_PROVIDER_MODE  - "disabled" (default: no provider configured -> all
+#                        submissions fail closed with PROVIDER_ERROR, a member
+#                        can never be auto-verified), "simulated" (the built-in
+#                        SimulatedKYCProvider for dev/tests/demo), or "live".
+#   KYC_PROVIDER       - dotted path to an authorized IdentityVerificationProvider
+#                        adapter, required for "live". No authorized NIDA
+#                        credentials exist in this repository; wiring one
+#                        requires an official/authorized integration.
+#   KYC_REQUIRED_LEVEL - platform default verification level the financial
+#                        engines demand (LEVEL_0/LEVEL_1/LEVEL_2). Groups may
+#                        override per-group through their withdrawal/loan policy.
+#   KYC_VERIFICATION_EXPIRY_DAYS / KYC_MAX_ATTEMPTS - retention + retry bounds.
+# ---------------------------------------------------------------------------
+KYC_PROVIDER_MODE = os.getenv("KYC_PROVIDER_MODE", "disabled").lower()
+KYC_PROVIDER = os.getenv("KYC_PROVIDER", "")
+KYC_REQUIRED_LEVEL = os.getenv("KYC_REQUIRED_LEVEL", "LEVEL_1")
+KYC_VERIFICATION_EXPIRY_DAYS = int(os.getenv("KYC_VERIFICATION_EXPIRY_DAYS", "365"))
+KYC_MAX_ATTEMPTS = int(os.getenv("KYC_MAX_ATTEMPTS", "3"))
+
+if KYC_PROVIDER_MODE not in {"disabled", "simulated", "live"}:
+    raise ImproperlyConfigured("KYC_PROVIDER_MODE must be one of: disabled, simulated, live.")
 
 AUTH_USER_MODEL = "users.User"
 # No append slash at the end of URL

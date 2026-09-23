@@ -389,7 +389,9 @@ def handle_payment_completed(webhook_event: WebhookEvent, data: dict) -> Payment
         return None
 
     if tx.status in (PaymentTransaction.Status.SUCCESS, PaymentTransaction.Status.RECONCILIATION_REQUIRED):
-        return tx  # already applied, or already under supervised review
+        # Already applied, or already under supervised review.
+        _note_duplicate_completion(tx, webhook_event)
+        return tx
 
     fee, gross, net, currency = _parse_provider_amounts(data)
     issue = _validate_provider_amount(expected=tx.amount, gross=gross, fee=fee, currency=currency, tx_currency=tx.currency)
@@ -461,6 +463,20 @@ def handle_payment_failed(webhook_event: WebhookEvent, data: dict) -> PaymentTra
         return None
     if tx.status == PaymentTransaction.Status.SUCCESS:
         return tx
+    if tx.status == PaymentTransaction.Status.RECONCILIATION_REQUIRED:
+        # A later failure report for a payment already under supervised review
+        # must not silently downgrade the open exception to Failed. The human
+        # resolving the OPEN record sees the contradiction instead.
+        _flag_for_reconciliation(
+            tx,
+            event=webhook_event,
+            issue=ReconciliationRecord.IssueType.PROVIDER_ERROR,
+            gross=tx.amount,
+            currency=tx.currency or "TZS",
+            actual_status="failed",
+            notes="Provider later reported the payment failed while it was under reconciliation review.",
+        )
+        return tx
     tx.status = PaymentTransaction.Status.FAILED
     tx.failure_reason = data.get("failure_reason") or data.get("message") or ""
     tx.save(update_fields=["status", "failure_reason", "updated_at"])
@@ -484,7 +500,9 @@ def handle_payout_completed(webhook_event: WebhookEvent, data: dict) -> PaymentT
             notes="payout.completed webhook referenced a payout we have no record of.",
         )
         return None
-    if tx.status == PaymentTransaction.Status.SUCCESS:
+    if tx.status in (PaymentTransaction.Status.SUCCESS, PaymentTransaction.Status.RECONCILIATION_REQUIRED):
+        # Already settled, or already under supervised review.
+        _note_duplicate_completion(tx, webhook_event)
         return tx
 
     fee, gross, net, currency = _parse_provider_amounts(data)
@@ -542,6 +560,19 @@ def handle_payout_failed(webhook_event: WebhookEvent, data: dict) -> PaymentTran
         )
         return None
     if tx.status == PaymentTransaction.Status.SUCCESS:
+        return tx
+    if tx.status == PaymentTransaction.Status.RECONCILIATION_REQUIRED:
+        # Same guard as handle_payment_failed: a payout under review must not
+        # be silently downgraded to Failed by a later failure report.
+        _flag_for_reconciliation(
+            tx,
+            event=webhook_event,
+            issue=ReconciliationRecord.IssueType.PROVIDER_ERROR,
+            gross=tx.amount,
+            currency=tx.currency or "TZS",
+            actual_status="failed",
+            notes="Provider later reported the payout failed while it was under reconciliation review.",
+        )
         return tx
     tx.status = PaymentTransaction.Status.FAILED
     tx.failure_reason = data.get("failure_reason") or data.get("message") or ""
@@ -771,6 +802,40 @@ def _payment_audit(payment, action, *, event=None, notes="", record=None):
         )
     except Exception:  # audit must never break the money path
         logger.exception("failed to write audit for %s", action)
+
+
+def _note_duplicate_completion(tx: PaymentTransaction, event: WebhookEvent):
+    """Flag a second completion event for an already-settled payment.
+
+    At-least-once delivery replays the SAME event id -> already deduplicated by
+    the webhook ingress, never seen here. What reaches the handler is a real
+    second completion carrying a different event id, which either says the
+    provider re-settled money or the reference was emitted twice — both need a
+    human. Poll-driven replays use the synthetic ``recon-`` namespace and are
+    intentionally silent.
+    """
+    if tx.status != PaymentTransaction.Status.SUCCESS:
+        return
+    event_id = (event.event_id if event else "") or ""
+    if not event_id or event_id.startswith("recon-"):
+        return
+    applied = (tx.metadata or {}).get("webhook", {}).get("id")
+    if not applied or applied == event_id:
+        return
+    ReconciliationRecord.objects.get_or_create(
+        provider=tx.provider,
+        provider_reference=tx.provider_reference or "",
+        issue_type=ReconciliationRecord.IssueType.DUPLICATE_PROVIDER_TRANSACTION,
+        defaults={
+            "payment": tx,
+            "internal_reference": tx.internal_reference,
+            "event_id": event_id,
+            "expected_amount": tx.amount,
+            "expected_status": PaymentTransaction.Status.SUCCESS,
+            "actual_status": PaymentTransaction.Status.SUCCESS,
+            "notes": "A second completion event arrived for an already-settled payment.",
+        },
+    )
 
 
 def _flag_for_reconciliation(payment, *, event, issue, gross, currency, actual_status="", notes=""):

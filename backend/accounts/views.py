@@ -143,6 +143,15 @@ class MemberWithdrawalRequestView(generics.ListCreateAPIView):
                 },
                 status=status.HTTP_403_FORBIDDEN,
             )
+        from kyc import services as kyc_services
+        if not kyc_services.satisfies(member):
+            return Response(
+                {
+                    "detail": "Your KYC verification level does not yet meet the requirement for withdrawals.",
+                    "verification_required": True,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         try:

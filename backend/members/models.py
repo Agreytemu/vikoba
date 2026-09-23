@@ -161,18 +161,29 @@ class Member(models.Model):
           onboarded by the platform) and stay verified.
         - Self-registered members become verified once they have submitted for
           review, verified their phone and completed KYC + next of kin.
-        """
-        if self.registration_source == self.RegistrationSource.ADMIN:
-            self.is_verified = True
-            return
 
-        if (
+        The authoritative KYC layer (``kyc`` app) is kept in sync so the
+        financial engines can consume a single, audited verification state.
+        """
+        changed = False
+        if self.registration_source == self.RegistrationSource.ADMIN:
+            if not self.is_verified:
+                self.is_verified = True
+                changed = True
+        elif (
             self.verification_submitted
             and self.phone_verified
             and self.next_of_kin.exists()
             and self.is_kyc_complete()
         ):
-            self.is_verified = True
+            if not self.is_verified:
+                self.is_verified = True
+                changed = True
+
+        if changed:
+            from kyc import services as kyc_services
+
+            kyc_services.sync_from_member(self)
 
     def save(self, *args, **kwargs):
         if not self.membership_number:

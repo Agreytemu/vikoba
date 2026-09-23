@@ -676,6 +676,14 @@ class GroupLoanPolicy(models.Model):
         default=True,
         help_text="Limit total group lending against aggregate member savings.",
     )
+    kyc_level_required = models.CharField(
+        max_length=10,
+        choices=[("LEVEL_0", "LEVEL_0"), ("LEVEL_1", "LEVEL_1"), ("LEVEL_2", "LEVEL_2")],
+        null=True,
+        blank=True,
+        help_text="KYC verification level the member must satisfy before a loan is "
+        "approved/disbursed. None = inherit the platform KYC_REQUIRED_LEVEL default.",
+    )
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

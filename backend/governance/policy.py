@@ -22,6 +22,10 @@ from django.utils import timezone
 from governance.errors import ApprovalError
 from governance.models import Decision, GroupWithdrawalPolicy
 
+
+def _platform_kyc_level():
+    return getattr(settings, "KYC_REQUIRED_LEVEL", "LEVEL_1")
+
 def _setting_decimal(name):
     value = getattr(settings, name, None)
     if value in (None, "", "None"):
@@ -84,6 +88,10 @@ def effective_values(policy: GroupWithdrawalPolicy | None) -> dict:
         "min_retained_ratio": getattr(policy, "min_retained_ratio", None) or DEFAULT_MIN_RETAINED_RATIO,
         "review_on_outstanding_loan": bool(getattr(policy, "review_on_outstanding_loan", False)),
         "review_on_outstanding_penalty": bool(getattr(policy, "review_on_outstanding_penalty", False)),
+        "kyc_level_required": (
+            getattr(policy, "kyc_level_required", None)
+            or _platform_kyc_level()
+        ),
         "review_levels": getattr(policy, "review_levels", GroupWithdrawalPolicy.REVIEW_SINGLE),
         "reviewer_role": getattr(policy, "reviewer_role", GroupWithdrawalPolicy.REVIEWER_ROLE_DEFAULT) or GroupWithdrawalPolicy.REVIEWER_ROLE_DEFAULT,
         "policy_version": (
@@ -92,6 +100,13 @@ def effective_values(policy: GroupWithdrawalPolicy | None) -> dict:
             else DEFAULT_POLICY_VERSION
         ),
     }
+
+
+def _kyc_satisfied(member, kyc_level) -> bool:
+    """Consult the authoritative KYC domain (never the frontend)."""
+    from kyc import services as kyc_services
+
+    return kyc_services.satisfies(member, kyc_level)
 
 
 def _member_withdrawal_stats(member, since, statuses):
@@ -148,12 +163,18 @@ def evaluate_withdrawal(
     passed = []
 
     # 1. Member / account validation -----------------------------------------
-    if not member.is_verified:
+    kyc_level = values["kyc_level_required"]
+    if not _kyc_satisfied(member, kyc_level):
         return PolicyDecision(
             Decision.REJECTED, "Withdrawals require a verified account.",
             code=ApprovalError.KYC_REQUIRED,
-            failed_rules=[{"code": ApprovalError.KYC_REQUIRED, "message": "Account is not KYC verified."}],
+            failed_rules=[{
+                "code": ApprovalError.KYC_REQUIRED,
+                "message": f"Account does not satisfy the required {kyc_level} verification level.",
+                "required_level": kyc_level,
+            }],
             policy_version=values["policy_version"],
+            metadata={"kyc_level_required": kyc_level},
         )
     if not (getattr(member, "is_active", True) if hasattr(member, "is_active") else True):
         return PolicyDecision(
